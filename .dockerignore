@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+data
+backups
+exports
+tmp
+bin
+dist
+coverage.out
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.md
