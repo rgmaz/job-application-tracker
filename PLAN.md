@@ -6,7 +6,8 @@
 
 ## Status
 
-- Current phase: **M0 complete — starting M1 (scaffold)**
+- Current phase: **M1.4 complete — next M1.5 (container assets)**
+- Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
 
@@ -16,8 +17,9 @@
 | ---------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Frontend         | Go `html/template` + htmx + vendored Pico.css. No Node/build step.                                               |
 | Backend          | Go stdlib `net/http` (1.22+ method routing), thin handlers over a service layer.                                 |
-| Repository layer | **sqlc** (`v1.31.1`, installed) generating from `db/migrations` + `db/queries`.                                  |
+| Repository layer | **sqlc** (`v1.31.1`, installed) generating from `internal/store/migrations` + `internal/store/queries`.        |
 | DB               | SQLite via `modernc.org/sqlite` (pure Go, `CGO_ENABLED=0`), WAL, FK on, single writer.                           |
+| Migrations       | **goose v3.30.1** as a library; embedded Up-only SQL files; `goose_db_version`.                                  |
 | Timezone         | **`Africa/Harare`** (UTC+2, no DST). Overridable via `TZ`.                                                       |
 | Files            | `DATA_DIR/files/<random-key>`; metadata in `documents`. `DATA_DIR` is the backup unit.                           |
 | Auth             | Single admin password (argon2id), signed session cookie. `AUTH_DISABLED` opt-out, guarded by `TRUST_PROXY_AUTH`. |
@@ -33,6 +35,9 @@
 - `sqlc v1.31.1` on this machine supports `engine: sqlite`, `sqlc.embed`,
   named args (`@name`), `RETURNING *`, `ON CONFLICT ... DO UPDATE`, and
   `?1` positional reuse. Selecting `a.*` produces flat row structs.
+- `goose v3.30.1` (requires Go 1.26) is the current release. A scratch probe
+  confirmed sqlc v1.31.1 parses goose-style `-- +goose Up` migration files, so
+  Up-only migrations can also serve as the sqlc schema source.
 - Go 1.27.4, Node 26, sqlc, sqlite3, make, git, curl available.
 - Host is Arch Linux; user `ryan` is in `wheel`. Docker 29.10.0 was installed
   during M0.1 (see checklist).
@@ -43,20 +48,20 @@
 cmd/server/                 main; subcommands serve|migrate|backup|healthcheck
 internal/config/            env parsing, defaults, validation
 internal/timeutil/          Harare clock, date helpers, embedded tzdata
-internal/store/             Open(), pragmas, migrator
+internal/store/             Open(), pragmas, goose runner
+internal/store/migrations/  goose Up-only SQL (also the sqlc schema source)
+internal/store/queries/     sqlc query files
 internal/store/db/          sqlc-generated code (committed)
 internal/model/             status/source enums, labels, terminality
 internal/service/           applications, documents, settings, auth
 internal/web/               router, handlers, middleware, render helpers
 internal/files/             upload validation, hashing, storage
-db/migrations/              numbered DDL (also the sqlc schema source)
-db/queries/                 sqlc query files
 web/templates/              layout + pages + htmx partials
 web/static/                 htmx.min.js, pico.min.css, app.css, app.js
 Dockerfile, compose.yaml, Makefile, README.md, .dockerignore, .gitignore
 ```
 
-## Data model (migration 0001)
+## Data model (goose migration 00001)
 
 Dates that represent calendar days are stored as `YYYY-MM-DD` **in Harare local
 time**; instants are stored as Unix epoch seconds. This keeps stale arithmetic
@@ -110,8 +115,10 @@ events(
 
 status_thresholds(status TEXT PRIMARY KEY, days INTEGER NOT NULL CHECK (days > 0))
 settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)
-schema_migrations(filename TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)
 ```
+
+goose creates and owns its `goose_db_version` table; there is no hand-written
+migration bookkeeping table.
 
 Staleness is derived, never stored:
 
@@ -122,6 +129,21 @@ is_stale = t.days IS NOT NULL AND due_on <= @today
 
 Terminal statuses have no `status_thresholds` row, so `t.days IS NULL` makes
 them never stale. `@today` is computed once per request in `Africa/Harare`.
+
+## Migration workflow
+
+- Migrations live in `internal/store/migrations/` and follow goose's sequential
+  naming: `00001_init.sql`, `00002_seed_thresholds.sql`, and so on.
+- Each file starts with `-- +goose Up` and contains **no Down section**. sqlc
+  parses the same files as its schema, so a Down section would drop the tables
+  sqlc is trying to read. Rollback is restore-from-backup, matching the
+  additive-only stance below.
+- `jat serve` applies pending migrations before listening; `jat migrate` runs
+  them explicitly (useful in CI or before a backup).
+- Never edit an applied migration; add a new numbered file.
+- goose is embedded as a library (`goose.SetBaseFS` + `goose.UpContext`), so the
+  container needs no extra binary. The goose CLI can still be installed locally
+  for `status`/`down` debugging against a copy of the database.
 
 ## Configuration surface
 
@@ -205,16 +227,20 @@ loopback.
     - Verify: `docker build -t jat:dev .` then `docker compose up -d`, `curl /healthz`,
       `docker image ls jat:dev` (expect roughly 10–15 MB compressed).
 
-### M2 — Schema, sqlc, store
+### M2 — Schema, goose, sqlc, store
 
-- [ ] **2.1 Migrations**
-    - Targets: `db/migrations/0001_init.sql`, `db/migrations/0002_seed_thresholds.sql`
-    - Changes: tables/indexes above; seed applied/screening/interviewing/offer
-      thresholds with `INSERT OR IGNORE`.
-    - Verify: `sqlite3 /tmp/jat.db < db/migrations/0001_init.sql` then
-      `.schema`; re-running 0002 is idempotent.
+- [ ] **2.1 goose migrations**
+    - Targets: `internal/store/migrations/00001_init.sql`,
+      `internal/store/migrations/00002_seed_thresholds.sql`
+    - Changes: goose Up-only files (`-- +goose Up`); tables/indexes above; seed
+      applied/screening/interviewing/offer thresholds with `INSERT OR IGNORE`.
+      No Down section: sqlc parses the same files and a Down section would drop
+      the tables it is trying to read.
+    - Verify: `sqlite3 /tmp/jat.db < internal/store/migrations/00001_init.sql`
+      then `.schema`; applying 00002 twice is idempotent.
 - [ ] **2.2 sqlc query files**
-    - Targets: `db/queries/applications.sql`, `events.sql`, `documents.sql`, `settings.sql`
+    - Targets: `internal/store/queries/applications.sql`, `events.sql`,
+      `documents.sql`, `settings.sql`
     - Changes:
         - Applications: `CreateApplication :one RETURNING *`, `GetApplication`,
           `ListApplications :many` (named filters `@today`, `@status_filter`,
@@ -228,26 +254,38 @@ loopback.
     - Verify: `sqlc generate` exits 0 (checked in 2.3).
 - [ ] **2.3 sqlc configuration and generation**
     - Targets: `sqlc.yaml`, `internal/store/db/*.go` (generated)
-    - Changes: `version: "2"`, `engine: sqlite`, schema `db/migrations`,
-      queries `db/queries`, package `db`, `emit_json_tags`,
+    - Changes: `version: "2"`, `engine: sqlite`, schema
+      `internal/store/migrations`, queries `internal/store/queries`, out
+      `internal/store/db`, package `db`, `emit_json_tags`,
       `emit_pointers_for_null_types`, `emit_empty_slices`.
-    - Verify: `sqlc generate && sqlc diff` (or `git diff --exit-code internal/store/db`)
-      is clean after committing generated output.
-- [ ] **2.4 Store bootstrap and migrator**
-    - Targets: `internal/store/store.go`, `internal/store/migrate.go`
-    - Changes: `Open(path)` with `_pragma` DSN (WAL, `busy_timeout=5000`,
-      `foreign_keys=1`, `synchronous=NORMAL`), `SetMaxOpenConns(1)`;
-      embedded migrations applied in filename order inside a transaction,
-      recorded in `schema_migrations`.
-    - Verify: `go test ./internal/store -run TestMigrate` on a temp DB; second run is a no-op.
+    - Verify: `sqlc generate && git diff --exit-code internal/store/db` is clean
+      after committing generated output. A planning probe already confirmed sqlc
+      v1.31.1 parses goose-style Up-only files (markers are comments).
+- [ ] **2.4 Store bootstrap and goose runner**
+    - Targets: `internal/store/store.go`, `internal/store/migrate.go`, `go.mod`
+    - Changes: `go get github.com/pressly/goose/v3@v3.30.1`; `Open(path)` with
+      `_pragma` DSN (WAL, `busy_timeout=5000`, `foreign_keys=1`,
+      `synchronous=NORMAL`), `SetMaxOpenConns(1)`; `//go:embed migrations/*.sql`
+      in `migrate.go`; `goose.SetBaseFS`, `goose.SetDialect("sqlite3")`,
+      `goose.UpContext(ctx, db, "migrations")`. goose owns `goose_db_version`;
+      no custom `schema_migrations` table. Initialize goose's global base FS,
+      dialect, and logger once via `sync.Once` so parallel store tests stay
+      race-free. Wire `jat migrate` to this and make `jat serve` migrate before
+      listening.
+    - Verify: `go test ./internal/store -run TestMigrate` on a temp DB; a second
+      run is a no-op; `go run ./cmd/server migrate` then
+      `sqlite3 <db> 'select max(version_id) from goose_db_version'` returns 2.
 - [ ] **2.5 Store integration tests**
     - Targets: `internal/store/store_test.go`
-    - Changes: temp-file DB per test; create/get/list/filter/stale assertions
-      (backdate `status_changed_on` and assert `is_stale`), cascade delete.
+    - Changes: temp-file DB per test; run goose migrations in a helper;
+      create/get/list/filter/stale assertions (backdate `status_changed_on` and
+      assert `is_stale`), cascade delete; assert `goose_db_version` reaches the
+      latest version.
     - Verify: `go test ./internal/store`.
 - [ ] **2.6 Makefile**
     - Targets: `Makefile`
-    - Changes: `generate`, `build`, `test`, `lint` (`go vet`), `run`, `docker`, `sqlc-check`.
+    - Changes: `generate`, `build`, `test`, `lint` (`go vet`), `run`, `migrate`,
+      `docker`, `sqlc-check`.
     - Verify: `make test && make generate` produce no unexpected diff.
 
 ### M3 — Applications and timeline
@@ -380,7 +418,8 @@ loopback.
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | Docker install touches the host (sudo, systemd, group) | Step 0.1 is isolated and reversible via `pacman -Rns`; do it first so image builds are verified early. |
 | SQLite allows a single replica                         | Compose must not scale `app`; README states it.                                                        |
-| No down-migrations                                     | Back up `DATA_DIR` before upgrades; migrations are additive only.                                      |
+| No down-migrations (goose Up-only)                     | Restore the `DATA_DIR` backup to roll back; migrations are additive only. A Down section would also break the shared sqlc schema. |
+| goose/sqlc schema coupling                             | Keep migrations Up-only with marker comments; avoid `StatementBegin`/`Down` until verified against sqlc. |
 | File/DB inconsistency on delete                        | Delete DB row first, then file; log orphaned keys; `backup` can later add a GC pass.                   |
 | sqlc drift                                             | Generated code committed; `make sqlc-check` runs `sqlc generate` + `git diff --exit-code`.             |
 | Timezone bugs                                          | All date logic uses `Africa/Harare`; `time/tzdata` embedded; tests cover UTC-boundary.                 |
@@ -393,6 +432,8 @@ gofmt -l .
 go vet ./...
 go test ./...
 sqlc generate && git diff --exit-code internal/store/db
+go run ./cmd/server migrate
+sqlite3 ./data/app.db 'select max(version_id) from goose_db_version'
 docker build -t jat:dev .
 docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 ```
@@ -408,3 +449,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.              |
 | 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                  |
 | 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.           |
+| 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.      |
