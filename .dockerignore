@@ -1,17 +1,29 @@
-.git
-.gitignore
+# Git
+.git/
+
+# Runtime data — never image this; it lives on a Docker volume or host dir.
+data/
+backups/
+exports/
 .env
 .env.*
-data
-backups
-exports
-tmp
-bin
-dist
-coverage.out
 *.db
 *.db-wal
 *.db-shm
 *.sqlite
 *.sqlite3
-*.md
+
+# Build output
+bin/
+dist/
+jat
+job-application-tracker
+
+# Editor and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Temp
+/tmp/

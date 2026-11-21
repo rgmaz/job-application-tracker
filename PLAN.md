@@ -218,14 +218,17 @@ loopback.
       until M2/M6; `GET /healthz` returning `{"status":"ok"}`.
     - Verify: `go run ./cmd/server serve` then `curl -fsS localhost:8080/healthz`;
       `healthcheck` exits 0; SIGTERM shuts down cleanly.
-- [ ] **1.5 Container assets**
-    - Targets: `Dockerfile`, `.dockerignore`, `compose.yaml`, `.env.example`
+- [x] **1.5 Container assets**
+    - Targets: `Dockerfile`, `.dockerignore`, `compose.yaml`, `.env.example`, `Makefile`
     - Changes: multi-stage `golang:1.27-alpine` → distroless static nonroot;
       `CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`; `VOLUME /data`;
-      `HEALTHCHECK CMD ["/app/app","healthcheck"]`; compose sets
-      `TZ=Africa/Harare`, `./data:/data`, `127.0.0.1:8080:8080`, `restart: unless-stopped`.
-    - Verify: `docker build -t jat:dev .` then `docker compose up -d`, `curl /healthz`,
-      `docker image ls jat:dev` (expect roughly 10–15 MB compressed).
+      `HEALTHCHECK CMD ["/app/app", "healthcheck"]`; compose sets
+      `TZ=Africa/Harare`, `./data:/data`, `127.0.0.1:8080:8080`,
+      `restart: unless-stopped`; `Makefile` targets for `build`, `test`,
+      `generate`, `migrate`, `run`, `docker`, `sqlc-check`, `lint`.
+    - Verify: `docker build -t jat:dev .` → 3.9 MB compressed; `docker compose
+      up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
+      `(healthy)`; `docker compose down -v` cleans up.
 
 ### M2 — Schema, goose, sqlc, store
 
@@ -450,3 +453,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                  |
 | 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.           |
 | 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.      |
+| 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed. |
