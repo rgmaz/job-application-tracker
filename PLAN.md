@@ -187,12 +187,15 @@ loopback.
       Added `DateLayout`/`DateTimeLayout`; nil location falls back to UTC.
     - Verify: `go test ./internal/timeutil` including a UTC-boundary case
       (e.g. 23:30 UTC on 2026-01-31 is 2026-02-01 in Harare).
-- [ ] **1.4 Entrypoint and subcommands**
-    - Targets: `cmd/server/main.go`, `cmd/server/serve.go`
-    - Changes: `serve` (bind, graceful shutdown, `slog` JSON/text),
-      `migrate`, `backup`, `healthcheck` (GET `http://127.0.0.1:$PORT/healthz`);
-      `GET /healthz` handler returning `{"status":"ok"}`.
-    - Verify: `go run ./cmd/server serve` then `curl -fsS localhost:8080/healthz`.
+- [x] **1.4 Entrypoint and subcommands**
+    - Targets: `cmd/server/main.go`, `cmd/server/serve.go`,
+      `cmd/server/healthcheck.go`, `internal/web/router.go`
+    - Changes: `serve` (bind, explicit timeouts, graceful shutdown, `slog`),
+      `healthcheck` (GET `http://127.0.0.1:$PORT/healthz`, probing loopback
+      when bound to `0.0.0.0`/`::`); `migrate`/`backup` stubs that fail loudly
+      until M2/M6; `GET /healthz` returning `{"status":"ok"}`.
+    - Verify: `go run ./cmd/server serve` then `curl -fsS localhost:8080/healthz`;
+      `healthcheck` exits 0; SIGTERM shuts down cleanly.
 - [ ] **1.5 Container assets**
     - Targets: `Dockerfile`, `.dockerignore`, `compose.yaml`, `.env.example`
     - Changes: multi-stage `golang:1.27-alpine` → distroless static nonroot;
@@ -404,3 +407,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified. |
 | 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.              |
 | 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                  |
+| 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.           |
