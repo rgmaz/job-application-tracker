@@ -126,13 +126,14 @@ them never stale. `@today` is computed once per request in `Africa/Harare`.
 ## Configuration surface
 
 ```
+BIND_ADDR=0.0.0.0          # 127.0.0.1 when a local proxy fronts the app
 PORT=8080
-DATA_DIR=/data
+DATA_DIR=./data            # compose mounts /data
 BASE_URL=https://jobs.example.com
 TZ=Africa/Harare
 AUTH_DISABLED=false
 TRUST_PROXY_AUTH=false
-COOKIE_SECURE=            # default: derived from BASE_URL scheme
+COOKIE_SECURE=             # unset: derived from BASE_URL scheme
 MAX_UPLOAD_MB=25
 SESSION_TTL_HOURS=720
 ```
@@ -173,10 +174,11 @@ loopback.
     - Changes: `go mod init github.com/rgmaz/job-application-tracker`; add
       `modernc.org/sqlite v1.62.0`, `golang.org/x/crypto v0.59.0`; `go 1.27.4`.
     - Verify: `go build ./...` (empty tree compiles).
-- [ ] **1.2 Config package**
+- [x] **1.2 Config package**
     - Targets: `internal/config/config.go`, `internal/config/config_test.go`
     - Changes: typed `Config`, env parsing with defaults, `time.LoadLocation`,
       validation (port, dirs, BASE_URL, auth/proxy guard, upload cap).
+      Added `BIND_ADDR` (default `0.0.0.0`) and derived `COOKIE_SECURE`.
     - Verify: `go test ./internal/config -run TestLoad`.
 - [ ] **1.3 Time utilities**
     - Targets: `internal/timeutil/timeutil.go`, `internal/timeutil/timeutil_test.go`
@@ -399,3 +401,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added. |
 | 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.          |
 | 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified. |
+| 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.            |
