@@ -25,7 +25,7 @@
 | Job ad           | Upload or paste only. URL fetching is future work (documented, not built).                                       |
 | Deploy           | `compose.yaml` with app + `./data` volume, bound for an existing TLS reverse proxy.                              |
 | Image            | `gcr.io/distroless/static-debian12:nonroot`, static binary, ~10–12 MB compressed.                                |
-| Module path      | `github.com/rgmaz/job-application-tracker`                                                                |
+| Module path      | `github.com/rgmaz/job-application-tracker`                                                                       |
 | User model       | Single user. No `users` table.                                                                                   |
 
 ### Verified in planning
@@ -180,10 +180,11 @@ loopback.
       validation (port, dirs, BASE_URL, auth/proxy guard, upload cap).
       Added `BIND_ADDR` (default `0.0.0.0`) and derived `COOKIE_SECURE`.
     - Verify: `go test ./internal/config -run TestLoad`.
-- [ ] **1.3 Time utilities**
+- [x] **1.3 Time utilities**
     - Targets: `internal/timeutil/timeutil.go`, `internal/timeutil/timeutil_test.go`
     - Changes: `_ "time/tzdata"`; `Clock` with `Now()`, `Today()` (Harare date
       string), `FormatDate`, `FormatDateTime`; override location for tests.
+      Added `DateLayout`/`DateTimeLayout`; nil location falls back to UTC.
     - Verify: `go test ./internal/timeutil` including a UTC-boundary case
       (e.g. 23:30 UTC on 2026-01-31 is 2026-02-01 in Harare).
 - [ ] **1.4 Entrypoint and subcommands**
@@ -395,10 +396,11 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 
 ## Progress Log
 
-| Date       | Step      | Note                                                                                      |
-| ---------- | --------- | ----------------------------------------------------------------------------------------- |
-| 2026-11-21 | Plan      | Approved decisions recorded; sqlc SQLite capabilities verified with a scratch probe.      |
-| 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added. |
-| 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.          |
+| Date       | Step      | Note                                                                                        |
+| ---------- | --------- | ------------------------------------------------------------------------------------------- |
+| 2026-11-21 | Plan      | Approved decisions recorded; sqlc SQLite capabilities verified with a scratch probe.        |
+| 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added.   |
+| 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.            |
 | 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified. |
-| 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.            |
+| 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.              |
+| 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                  |
