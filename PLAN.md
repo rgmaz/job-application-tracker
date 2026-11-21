@@ -25,7 +25,7 @@
 | Job ad           | Upload or paste only. URL fetching is future work (documented, not built).                                       |
 | Deploy           | `compose.yaml` with app + `./data` volume, bound for an existing TLS reverse proxy.                              |
 | Image            | `gcr.io/distroless/static-debian12:nonroot`, static binary, ~10–12 MB compressed.                                |
-| Module path      | `jobtracker` (rename later if a remote is added).                                                                |
+| Module path      | `github.com/rgmaz/job-application-tracker`                                                                |
 | User model       | Single user. No `users` table.                                                                                   |
 
 ### Verified in planning
@@ -168,10 +168,10 @@ loopback.
 
 ### M1 — Scaffold, config, timezone, container
 
-- [ ] **1.1 Go module and dependencies**
+- [x] **1.1 Go module and dependencies**
     - Targets: `go.mod`, `go.sum`
-    - Changes: `go mod init jobtracker`; add `modernc.org/sqlite`,
-      `golang.org/x/crypto`; `go 1.27`.
+    - Changes: `go mod init github.com/rgmaz/job-application-tracker`; add
+      `modernc.org/sqlite v1.62.0`, `golang.org/x/crypto v0.59.0`; `go 1.27.4`.
     - Verify: `go build ./...` (empty tree compiles).
 - [ ] **1.2 Config package**
     - Targets: `internal/config/config.go`, `internal/config/config_test.go`
@@ -398,3 +398,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | Plan      | Approved decisions recorded; sqlc SQLite capabilities verified with a scratch probe.      |
 | 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added. |
 | 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.          |
+| 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified. |
