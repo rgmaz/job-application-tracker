@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 in progress — 2.3 complete; next 2.4 (store bootstrap + goose runner)**
+- Current phase: **M2 in progress — 2.4 complete; next 2.5 (store integration tests)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -273,20 +273,25 @@ loopback.
     - Verify: `sqlc generate && git diff --exit-code internal/store/db` is clean
       after committing generated output. A planning probe already confirmed sqlc
       v1.31.1 parses goose-style Up-only files (markers are comments).
-- [ ] **2.4 Store bootstrap and goose runner**
-    - Targets: `internal/store/store.go`, `internal/store/migrate.go`, `go.mod`
-    - Changes: `go get github.com/pressly/goose/v3@v3.30.1`; `Open(path)` with
-      `_pragma` DSN (WAL, `busy_timeout=5000`, `foreign_keys=1`,
-      `synchronous=NORMAL`), `SetMaxOpenConns(1)`; `//go:embed migrations/*.sql`
-      in `migrate.go`; `goose.SetBaseFS`, `goose.SetDialect("sqlite3")`,
+- [x] **2.4 Store bootstrap and goose runner**
+    - Targets: `internal/store/store.go`, `internal/store/migrate.go`,
+      `cmd/server/migrate.go`, `cmd/server/serve.go`, `go.mod`
+    - Changes: `go mod tidy` promotes goose and modernc to direct requirements;
+      `Open(ctx, path)` creates the parent directory and uses a `file:` DSN with
+      `_pragma` (WAL, `busy_timeout=5000`, `foreign_keys=1`,
+      `synchronous=NORMAL`) plus `SetMaxOpenConns(1)`; `Path(dataDir)` resolves
+      `<DATA_DIR>/app.db`; `//go:embed migrations/*.sql` in `migrate.go`;
+      `goose.SetBaseFS`, `goose.SetDialect("sqlite3")`,
       `goose.UpContext(ctx, db, "migrations")`. goose owns `goose_db_version`;
-      no custom `schema_migrations` table. Initialize goose's global base FS,
-      dialect, and logger once via `sync.Once` so parallel store tests stay
-      race-free. Wire `jat migrate` to this and make `jat serve` migrate before
-      listening.
-    - Verify: `go test ./internal/store -run TestMigrate` on a temp DB; a second
-      run is a no-op; `go run ./cmd/server migrate` then
-      `sqlite3 <db> 'select max(version_id) from goose_db_version'` returns 2.
+      no custom `schema_migrations` table. goose's base FS, dialect, and logger
+      are initialized once via `sync.Once` so parallel store tests stay
+      race-free. `jat migrate` opens and migrates; `jat serve` migrates before
+      binding.
+    - Verify: `go test ./internal/store -run 'TestMigrate|TestOpen'` covers
+      pragmas, parent-dir creation, idempotency, and parallel databases;
+      `jat migrate` twice leaves `max(version_id)` = 2; `jat serve` serves
+      `/healthz` with version 2 already applied; `go test -race ./...` and
+      `go vet ./...` are clean.
 - [ ] **2.5 Store integration tests**
     - Targets: `internal/store/store_test.go`
     - Changes: temp-file DB per test; run goose migrations in a helper;
@@ -466,3 +471,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds. |
 | 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite. |
 | 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable. |
+| 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean. |
