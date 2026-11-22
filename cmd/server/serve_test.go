@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rgmaz/job-application-tracker/internal/store"
 )
 
 func TestServeListener(t *testing.T) {
@@ -66,5 +68,21 @@ func TestServeListenError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "listen") {
 		t.Errorf("serve() error = %q, want containing listen", err)
+	}
+
+	// Migrations must run before the listener is opened, even when listening
+	// then fails.
+	db, openErr := store.Open(context.Background(), store.Path(cfg.DataDir))
+	if openErr != nil {
+		t.Fatalf("open migrated database: %v", openErr)
+	}
+	defer func() { _ = db.Close() }()
+
+	var version int64
+	if err := db.QueryRow("SELECT max(version_id) FROM goose_db_version").Scan(&version); err != nil {
+		t.Fatalf("serve did not migrate before listening: %v", err)
+	}
+	if version != 2 {
+		t.Errorf("goose version = %d, want 2", version)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rgmaz/job-application-tracker/internal/config"
+	"github.com/rgmaz/job-application-tracker/internal/store"
 	"github.com/rgmaz/job-application-tracker/internal/web"
 )
 
@@ -43,11 +44,6 @@ func TestRun(t *testing.T) {
 			name:    "help flag",
 			args:    []string{"--help"},
 			wantOut: "usage: jat",
-		},
-		{
-			name:    "migrate is stubbed",
-			args:    []string{"migrate"},
-			wantErr: "not implemented",
 		},
 		{
 			name:    "backup is stubbed",
@@ -92,6 +88,35 @@ func TestRun(t *testing.T) {
 				t.Errorf("output = %q, want containing %q", out.String(), tt.wantOut)
 			}
 		})
+	}
+}
+
+func TestRunMigrate(t *testing.T) {
+	t.Parallel()
+
+	cfg := configForURL(t, "http://127.0.0.1:8080")
+	load := func() (config.Config, error) { return cfg, nil }
+
+	var out bytes.Buffer
+	if err := run(context.Background(), []string{"migrate"}, load, &out, io.Discard); err != nil {
+		t.Fatalf("run(migrate): %v", err)
+	}
+	if !strings.Contains(out.String(), "migrations applied") {
+		t.Errorf("output = %q, want containing %q", out.String(), "migrations applied")
+	}
+
+	db, err := store.Open(context.Background(), store.Path(cfg.DataDir))
+	if err != nil {
+		t.Fatalf("open migrated database: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	var version int64
+	if err := db.QueryRow("SELECT max(version_id) FROM goose_db_version").Scan(&version); err != nil {
+		t.Fatalf("read goose_db_version: %v", err)
+	}
+	if version != 2 {
+		t.Errorf("goose version = %d, want 2", version)
 	}
 }
 

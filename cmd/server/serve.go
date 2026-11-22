@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rgmaz/job-application-tracker/internal/config"
+	"github.com/rgmaz/job-application-tracker/internal/store"
 	"github.com/rgmaz/job-application-tracker/internal/web"
 )
 
@@ -23,6 +24,18 @@ const (
 )
 
 func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
+	db, err := store.Open(ctx, store.Path(cfg.DataDir))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	// Migrate before binding: a half-migrated database must never accept
+	// traffic, and a failed migration should abort startup.
+	if err := store.Migrate(ctx, db); err != nil {
+		return err
+	}
+
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr(), err)

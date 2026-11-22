@@ -40,6 +40,7 @@ func configForURL(t *testing.T, raw string) config.Config {
 	return config.Config{
 		BindAddr:       host,
 		Port:           port,
+		DataDir:        t.TempDir(),
 		BaseURL:        u,
 		Location:       time.UTC,
 		MaxUploadBytes: 1 << 20,

@@ -17,7 +17,7 @@ const usage = `usage: jat <command>
 
 commands:
   serve        start the HTTP server
-  migrate      apply database migrations (wired in M2)
+  migrate      apply database migrations
   backup       back up the database and files (wired in M6)
   healthcheck  probe the local /healthz endpoint
   help         show this message
@@ -57,7 +57,11 @@ func run(ctx context.Context, args []string, load func() (config.Config, error),
 		}
 		return healthcheck(ctx, cfg, stdout)
 	case "migrate":
-		return errors.New("migrate: not implemented yet (arrives with the store in M2)")
+		cfg, err := load()
+		if err != nil {
+			return err
+		}
+		return migrate(ctx, cfg, stdout)
 	case "backup":
 		return errors.New("backup: not implemented yet (arrives in M6)")
 	default:
