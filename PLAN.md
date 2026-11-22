@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 in progress — 2.4 complete; next 2.5 (store integration tests)**
+- Current phase: **M2 in progress — 2.5 complete; next 2.6 (Makefile)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -292,13 +292,22 @@ loopback.
       `jat migrate` twice leaves `max(version_id)` = 2; `jat serve` serves
       `/healthz` with version 2 already applied; `go test -race ./...` and
       `go vet ./...` are clean.
-- [ ] **2.5 Store integration tests**
+- [x] **2.5 Store integration tests**
     - Targets: `internal/store/store_test.go`
-    - Changes: temp-file DB per test; run goose migrations in a helper;
-      create/get/list/filter/stale assertions (backdate `status_changed_on` and
-      assert `is_stale`), cascade delete; assert `goose_db_version` reaches the
-      latest version.
-    - Verify: `go test ./internal/store`.
+    - Changes: `newTestStore` helper opens a temp-file DB, runs goose, and binds
+      `db.New`; `createApplication` / `listApplications` helpers keep fixtures
+      terse. Coverage: application create/get/update/status/delete including
+      missing-row `sql.ErrNoRows` and `:execrows` counts; list status, source,
+      case-insensitive text, stale-only, limit, and offset filters; derived
+      `due_on` / `is_stale` with a fixed `2026-11-22` reference date covering the
+      exact-threshold boundary, `follow_up_on` overrides in both directions,
+      terminal-status immunity, and the 3-day offer threshold; cascade delete of
+      events and documents plus an explicit foreign-key violation; dashboard
+      counts including the empty-database zero case; settings and threshold
+      upserts; event and document ordering and deletes. The existing migrate
+      tests already assert `goose_db_version` reaches version 2.
+    - Verify: `go test -race ./internal/store` and `go test -race ./...` pass;
+      `go vet ./...`, `gofmt -l .`, and `sqlc generate` are clean.
 - [ ] **2.6 Makefile**
     - Targets: `Makefile`
     - Changes: `generate`, `build`, `test`, `lint` (`go vet`), `run`, `migrate`,
@@ -472,3 +481,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite. |
 | 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable. |
 | 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean. |
+| 2026-11-22 | M2.5      | Store integration tests cover CRUD, filters, derived staleness, cascade delete, dashboard, settings, events, documents; race/vet/gofmt/sqlc clean. |
