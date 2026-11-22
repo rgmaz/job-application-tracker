@@ -50,6 +50,11 @@ CREATE TABLE status_thresholds (
   days INTEGER NOT NULL CHECK (days > 0)
 );
 
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- Indexes for common query patterns
 CREATE INDEX idx_applications_status ON applications(status);
 CREATE INDEX idx_applications_status_changed ON applications(status_changed_on);
