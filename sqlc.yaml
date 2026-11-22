@@ -1,0 +1,15 @@
+version: "2"
+
+sql:
+  - engine: "sqlite"
+    # The goose Up-only migrations are also the schema sqlc parses. Keep them
+    # free of Down sections; see PLAN.md "Migration workflow".
+    schema: "internal/store/migrations"
+    queries: "internal/store/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/store/db"
+        emit_json_tags: true
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
