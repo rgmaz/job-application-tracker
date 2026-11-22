@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 in progress — 2.2 complete; next 2.3 (sqlc config + generation)**
+- Current phase: **M2 in progress — 2.3 complete; next 2.4 (store bootstrap + goose runner)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -264,7 +264,7 @@ loopback.
       run against a seeded temp DB: stale/terminal/follow-up-override rows,
       status/source/q filters, pagination, dashboard counts, and cascade delete
       all behaved as specified.
-- [ ] **2.3 sqlc configuration and generation**
+- [x] **2.3 sqlc configuration and generation**
     - Targets: `sqlc.yaml`, `internal/store/db/*.go` (generated)
     - Changes: `version: "2"`, `engine: sqlite`, schema
       `internal/store/migrations`, queries `internal/store/queries`, out
@@ -465,3 +465,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed. |
 | 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds. |
 | 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite. |
+| 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable. |
