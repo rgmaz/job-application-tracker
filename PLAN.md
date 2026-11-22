@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M1.4 complete — next M1.5 (container assets)**
+- Current phase: **M2 in progress — 2.1 complete; next 2.2 (sqlc queries)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -232,7 +232,7 @@ loopback.
 
 ### M2 — Schema, goose, sqlc, store
 
-- [ ] **2.1 goose migrations**
+- [x] **2.1 goose migrations**
     - Targets: `internal/store/migrations/00001_init.sql`,
       `internal/store/migrations/00002_seed_thresholds.sql`
     - Changes: goose Up-only files (`-- +goose Up`); tables/indexes above; seed
@@ -240,7 +240,9 @@ loopback.
       No Down section: sqlc parses the same files and a Down section would drop
       the tables it is trying to read.
     - Verify: `sqlite3 /tmp/jat.db < internal/store/migrations/00001_init.sql`
-      then `.schema`; applying 00002 twice is idempotent.
+      then `.schema`; applying 00002 twice is idempotent. Both pass: five tables
+      plus six indexes, four seeded thresholds, and the `days > 0` CHECK
+      rejects a zero-day row.
 - [ ] **2.2 sqlc query files**
     - Targets: `internal/store/queries/applications.sql`, `events.sql`,
       `documents.sql`, `settings.sql`
@@ -454,3 +456,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.           |
 | 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.      |
 | 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed. |
+| 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds. |
