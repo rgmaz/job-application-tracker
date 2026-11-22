@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 in progress — 2.1 complete; next 2.2 (sqlc queries)**
+- Current phase: **M2 in progress — 2.2 complete; next 2.3 (sqlc config + generation)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -243,7 +243,7 @@ loopback.
       then `.schema`; applying 00002 twice is idempotent. Both pass: five tables
       plus six indexes, four seeded thresholds, and the `days > 0` CHECK
       rejects a zero-day row.
-- [ ] **2.2 sqlc query files**
+- [x] **2.2 sqlc query files**
     - Targets: `internal/store/queries/applications.sql`, `events.sql`,
       `documents.sql`, `settings.sql`
     - Changes:
@@ -256,7 +256,14 @@ loopback.
         - Documents: `CreateDocument`, `ListDocuments`, `GetDocument`, `DeleteDocument`.
         - Settings: `GetSetting`, `ListSettings`, `UpsertSetting`, `ListThresholds`,
           `UpsertThreshold`.
-    - Verify: `sqlc generate` exits 0 (checked in 2.3).
+        - Optional filters use `""`/`0` sentinels plus explicit `CAST(...)`;
+          `sqlc.narg` types as `interface{}` under the SQLite engine. Aggregate
+          sums are cast to `INTEGER` for the same reason. Deletes are
+          `:execrows` so services can distinguish "not found".
+    - Verify: `sqlc generate` exits 0 (checked in 2.3); generated SQL was also
+      run against a seeded temp DB: stale/terminal/follow-up-override rows,
+      status/source/q filters, pagination, dashboard counts, and cascade delete
+      all behaved as specified.
 - [ ] **2.3 sqlc configuration and generation**
     - Targets: `sqlc.yaml`, `internal/store/db/*.go` (generated)
     - Changes: `version: "2"`, `engine: sqlite`, schema
@@ -457,3 +464,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.      |
 | 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed. |
 | 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds. |
+| 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite. |
