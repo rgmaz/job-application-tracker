@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M3 in progress — 3.2 complete; next 3.3 (layout, assets, render helper)**
+- Current phase: **M3 in progress — 3.3 complete; next 3.4 (application handlers)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -349,13 +349,25 @@ loopback.
       optional fields, multi-field validation with no partial writes, get,
       update, status transitions/no-op/invalid, delete keys and cascade,
       list filters/pagination, and dashboard counts; race/vet/gofmt/sqlc clean.
-- [ ] **3.3 Layout, assets, render helper**
-    - Targets: `web/templates/layout.html`, `web/static/{htmx.min.js,pico.min.css,app.css,app.js}`,
-      `internal/web/render.go`
-    - Changes: `embed.FS`, template funcs (`fmtDate`, `fmtDateTime`, `statusLabel`,
-      `isTerminal`), base layout, nav, flash message; vendored assets only.
-    - Verify: `go test ./internal/web -run TestTemplatesParse`; page renders without
-      template execution errors.
+- [x] **3.3 Layout, assets, render helper**
+    - Targets: `web/templates/layout.html`, `web/templates/_flash.html`,
+      `web/static/{htmx.min.js,pico.min.css,app.css,app.js,*.LICENSE}`,
+      `web/embed.go`, `internal/web/render.go`, `internal/web/render_test.go`
+    - Changes: a `webassets` package embeds `templates/` and `static/` because
+      `go:embed` cannot reach parent directories. Vendored htmx 2.0.11 and Pico
+      2.1.1 (with their licenses) keep the image offline; `app.css` adds
+      flash/badge/stale/timeline styles and `app.js` handles `data-confirm`.
+      The layout has nav with active state, a flash partial, and a default
+      `content` block. `Renderer` parses the layout plus partials once per page
+      so each page can define `content` without colliding. Template funcs:
+      `fmtDate`, `fmtDateTime` (string/unix/time, Harare display), `statusLabel`,
+      `isTerminal`. Rendering goes through a buffer so execution errors never
+      emit a partial page. Added `timeutil.Clock.Location()` for display
+      formatting.
+    - Verify: `go test ./internal/web -run TestTemplatesParse` renders the layout
+      with nav, flash, asset links, and default content; `TestTemplateFuncs`
+      covers dates, labels, and terminality; `TestStaticAssetsEmbedded` confirms
+      all four assets are non-empty. Full race/vet/gofmt/sqlc checks clean.
 - [ ] **3.4 Application handlers**
     - Targets: `internal/web/router.go`, `internal/web/applications.go`,
       `web/templates/applications_*.html`
@@ -506,3 +518,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work. |
 | 2026-11-23 | M3.1      | `model.Status` / `model.Source` with ordered lists, labels, terminality, and strict parsing; race suite clean. |
 | 2026-11-23 | M3.2      | Application service with transactional create/status/delete, shared validation, filtered list, and dashboard counts; race/vet clean. |
+| 2026-11-23 | M3.3      | Embedded layout + vendored htmx/Pico assets, per-page renderer, and date/status template funcs; render and asset tests pass. |
