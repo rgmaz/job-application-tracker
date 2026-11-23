@@ -1,0 +1,53 @@
+:root {
+  --pico-font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+nav ul {
+  margin-bottom: 0;
+}
+
+.flash {
+  border-left: 4px solid var(--pico-primary);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--pico-secondary-background);
+  color: var(--pico-secondary-inverse);
+}
+
+.badge.terminal {
+  background: var(--pico-muted-border-color);
+  color: var(--pico-color);
+}
+
+.stale {
+  color: var(--pico-del-color, #b3261e);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--pico-muted-color);
+}
+
+.timeline {
+  list-style: none;
+  padding-left: 0;
+}
+
+.timeline li {
+  border-left: 2px solid var(--pico-muted-border-color);
+  padding: 0 0 1rem 1rem;
+}

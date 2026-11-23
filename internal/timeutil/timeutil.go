@@ -41,6 +41,11 @@ func (c *Clock) Now() time.Time {
 	return c.now().In(c.loc)
 }
 
+// Location returns the clock's configured location.
+func (c *Clock) Location() *time.Location {
+	return c.loc
+}
+
 // Today returns the current calendar date in the clock's location.
 func (c *Clock) Today() string {
 	return c.Now().Format(DateLayout)
