@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M3 in progress — 3.1 complete; next 3.2 (application service)**
+- Current phase: **M3 in progress — 3.2 complete; next 3.3 (layout, assets, render helper)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -330,13 +330,25 @@ loopback.
       `other`.
     - Verify: `go test ./internal/model` covers ordering, uniqueness, labels,
       terminality, and strict (case-sensitive) parsing.
-- [ ] **3.2 Application service**
-    - Targets: `internal/service/applications.go`, `..._test.go`
-    - Changes: create (default `applied_on` = today Harare, first `status_change`
-      event), update, status change (validate, set `status_changed_on/at`, append
-      event in one tx), delete (collect storage keys), list with filters,
-      dashboard counts.
-    - Verify: `go test ./internal/service -run TestApplication`.
+- [x] **3.2 Application service**
+    - Targets: `internal/service/applications.go`, `internal/service/applications_test.go`
+    - Changes: `ApplicationService` wraps the generated queries and a small
+      `Clock` interface (`Now`/`Today`) so tests pin Harare dates. `Create`
+      defaults `applied_on` to today, defaults status/source, validates required
+      fields, strict `YYYY-MM-DD` dates, status, and source, then inserts the
+      application and first `status_change` event in one transaction. `Update`
+      edits non-status fields and clears empty optionals. `ChangeStatus`
+      validates, sets `status_changed_on/at`, appends the `old → new` event in
+      one transaction, and treats the current status as a no-op so the follow-up
+      clock is not reset. `Delete` collects document storage keys before the
+      cascade and returns them for post-commit file cleanup. `List` validates
+      filters, trims the query, maps `StaleOnly`, defaults/clamps the page size
+      (50/200), and uses today's Harare date. `Dashboard` uses the same date.
+      `ValidationError.Fields` carries per-field messages for the web layer.
+    - Verify: `go test ./internal/service -run TestApplication` covers defaults,
+      optional fields, multi-field validation with no partial writes, get,
+      update, status transitions/no-op/invalid, delete keys and cascade,
+      list filters/pagination, and dashboard counts; race/vet/gofmt/sqlc clean.
 - [ ] **3.3 Layout, assets, render helper**
     - Targets: `web/templates/layout.html`, `web/static/{htmx.min.js,pico.min.css,app.css,app.js}`,
       `internal/web/render.go`
@@ -493,3 +505,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-22 | M2.5      | Store integration tests cover CRUD, filters, derived staleness, cascade delete, dashboard, settings, events, documents; race/vet/gofmt/sqlc clean. |
 | 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work. |
 | 2026-11-23 | M3.1      | `model.Status` / `model.Source` with ordered lists, labels, terminality, and strict parsing; race suite clean. |
+| 2026-11-23 | M3.2      | Application service with transactional create/status/delete, shared validation, filtered list, and dashboard counts; race/vet clean. |
