@@ -6,11 +6,16 @@ build: generate
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BIN) ./cmd/server
 
 test:
-	go test ./...
+	go test -race ./...
 
 lint:
 	go vet ./...
-	gofmt -l .
+	@unformatted="$$(gofmt -l .)"; \
+	if [ -n "$$unformatted" ]; then \
+		echo "gofmt needed:" >&2; \
+		echo "$$unformatted" >&2; \
+		exit 1; \
+	fi
 
 generate:
 	sqlc generate
@@ -19,7 +24,7 @@ migrate:
 	go run ./cmd/server migrate
 
 run: build
-	./$(BIN) serve
+	$(BIN) serve
 
 docker:
 	docker build -t jat:dev .
