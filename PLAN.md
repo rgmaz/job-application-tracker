@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 complete — next 3.1 (domain helpers)**
+- Current phase: **M3 in progress — 3.1 complete; next 3.2 (application service)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -320,11 +320,16 @@ loopback.
 
 ### M3 — Applications and timeline
 
-- [ ] **3.1 Domain helpers**
+- [x] **3.1 Domain helpers**
     - Targets: `internal/model/status.go`, `internal/model/status_test.go`
-    - Changes: `Status` type, ordered statuses, labels, `IsTerminal`,
-      source constants/labels, validation.
-    - Verify: `go test ./internal/model`.
+    - Changes: `Status` and `Source` string types; ordered `Statuses` /
+      `Sources`; label lookup with raw-value fallback; `IsTerminal` covering the
+      four final statuses; `Valid` and `ParseStatus` / `ParseSource` returning
+      `ErrInvalidStatus` / `ErrInvalidSource` for handler-to-422 mapping.
+      Sources: `linkedin`, `referral`, `company_site`, `job_board`, `recruiter`,
+      `other`.
+    - Verify: `go test ./internal/model` covers ordering, uniqueness, labels,
+      terminality, and strict (case-sensitive) parsing.
 - [ ] **3.2 Application service**
     - Targets: `internal/service/applications.go`, `..._test.go`
     - Changes: create (default `applied_on` = today Harare, first `status_change`
@@ -487,3 +492,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean. |
 | 2026-11-22 | M2.5      | Store integration tests cover CRUD, filters, derived staleness, cascade delete, dashboard, settings, events, documents; race/vet/gofmt/sqlc clean. |
 | 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work. |
+| 2026-11-23 | M3.1      | `model.Status` / `model.Source` with ordered lists, labels, terminality, and strict parsing; race suite clean. |
