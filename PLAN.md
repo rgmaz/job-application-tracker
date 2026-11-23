@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M2 in progress — 2.5 complete; next 2.6 (Makefile)**
+- Current phase: **M2 complete — next 3.1 (domain helpers)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -308,11 +308,15 @@ loopback.
       tests already assert `goose_db_version` reaches version 2.
     - Verify: `go test -race ./internal/store` and `go test -race ./...` pass;
       `go vet ./...`, `gofmt -l .`, and `sqlc generate` are clean.
-- [ ] **2.6 Makefile**
+- [x] **2.6 Makefile**
     - Targets: `Makefile`
-    - Changes: `generate`, `build`, `test`, `lint` (`go vet`), `run`, `migrate`,
-      `docker`, `sqlc-check`.
-    - Verify: `make test && make generate` produce no unexpected diff.
+    - Changes: `generate` (sqlc), `build` (static `CGO_ENABLED=0`), `test`
+      (`go test -race ./...`), `lint` (`go vet` plus a `gofmt -l` gate that
+      actually fails), `run`, `migrate`, `docker`, and `sqlc-check`. `BIN` is
+      used verbatim so `make build BIN=bin/jat` works; `clean` removes it.
+    - Verify: `make test`, `make generate`, `make lint`, `make sqlc-check`,
+      `make build`, and `make clean` pass with no unexpected diff; a deliberately
+      unformatted file makes `make lint` exit non-zero.
 
 ### M3 — Applications and timeline
 
@@ -482,3 +486,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable. |
 | 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean. |
 | 2026-11-22 | M2.5      | Store integration tests cover CRUD, filters, derived staleness, cascade delete, dashboard, settings, events, documents; race/vet/gofmt/sqlc clean. |
+| 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work. |
