@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M3 in progress — 3.3 complete; next 3.4 (application handlers)**
+- Current phase: **M3 in progress — 3.4 complete; next 3.5 (dashboard)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -17,7 +17,7 @@
 | ---------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Frontend         | Go `html/template` + htmx + vendored Pico.css. No Node/build step.                                               |
 | Backend          | Go stdlib `net/http` (1.22+ method routing), thin handlers over a service layer.                                 |
-| Repository layer | **sqlc** (`v1.31.1`, installed) generating from `internal/store/migrations` + `internal/store/queries`.        |
+| Repository layer | **sqlc** (`v1.31.1`, installed) generating from `internal/store/migrations` + `internal/store/queries`.          |
 | DB               | SQLite via `modernc.org/sqlite` (pure Go, `CGO_ENABLED=0`), WAL, FK on, single writer.                           |
 | Migrations       | **goose v3.30.1** as a library; embedded Up-only SQL files; `goose_db_version`.                                  |
 | Timezone         | **`Africa/Harare`** (UTC+2, no DST). Overridable via `TZ`.                                                       |
@@ -227,7 +227,7 @@ loopback.
       `restart: unless-stopped`; `Makefile` targets for `build`, `test`,
       `generate`, `migrate`, `run`, `docker`, `sqlc-check`, `lint`.
     - Verify: `docker build -t jat:dev .` → 3.9 MB compressed; `docker compose
-      up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
+up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       `(healthy)`; `docker compose down -v` cleans up.
 
 ### M2 — Schema, goose, sqlc, store
@@ -368,15 +368,30 @@ loopback.
       with nav, flash, asset links, and default content; `TestTemplateFuncs`
       covers dates, labels, and terminality; `TestStaticAssetsEmbedded` confirms
       all four assets are non-empty. Full race/vet/gofmt/sqlc checks clean.
-- [ ] **3.4 Application handlers**
+- [x] **3.4 Application handlers**
     - Targets: `internal/web/router.go`, `internal/web/applications.go`,
-      `web/templates/applications_*.html`
-    - Changes: routes from the plan (`GET/POST /applications`, detail, edit,
-      `POST /applications/{id}/status`, `POST /applications/{id}/events`,
-      delete); htmx partial for list rows and timeline; filters
-      status/source/q/stale; validation errors re-render form with 422.
-    - Verify: `go test ./internal/web -run TestApplications` using `httptest`
-      against a temp store.
+      `internal/web/applications_test.go`,
+      `web/templates/applications_{list,form,detail}.html`,
+      `web/templates/_application_rows.html`,
+      `web/templates/_application_form_fields.html`,
+      `web/templates/_timeline.html`, `internal/web/render.go`
+    - Changes: routes for list, new/create, detail, edit/update, status change,
+      timeline events, delete, plus an exact-root redirect and `/static/`.
+      Filters (`status`, `source`, `q`, `stale`) drive the list and an htmx
+      rows partial; the timeline form swaps a `timeline_block` partial and keeps
+      errors in place because htmx does not swap 4xx. Plain form posts still
+      redirect with a flash code, so the UI works without JavaScript. Validation
+      errors re-render with 422 and per-field messages. Missing/invalid IDs map
+      to 404. Added `Renderer.RenderPartial`, `sourceLabel`, and `eventLabel`.
+      `ApplicationService` gained `AddEvent`/`ListEvents` with user event types
+      (`note`, `email_sent`, `email_received`); status/document events stay
+      service-owned. `NewRouter` now takes the service and renderer (nil for
+      health-only use), and `serve` builds them from the DB and configured
+      timezone.
+    - Verify: `go test ./internal/web -run TestApplications` plus detail, edit,
+      status, events, delete, root, and static tests cover rendering, filters,
+      htmx fragments, redirects, 422 re-renders, and 404s against a temp store;
+      race/vet/gofmt/sqlc clean.
 - [ ] **3.5 Dashboard**
     - Targets: `internal/web/dashboard.go`, `web/templates/dashboard.html`
     - Changes: counts (total/active/interviewing/offers/stale), stale list,
@@ -473,16 +488,16 @@ loopback.
 
 ## Risks and rollback
 
-| Risk                                                   | Mitigation / rollback                                                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Docker install touches the host (sudo, systemd, group) | Step 0.1 is isolated and reversible via `pacman -Rns`; do it first so image builds are verified early. |
-| SQLite allows a single replica                         | Compose must not scale `app`; README states it.                                                        |
+| Risk                                                   | Mitigation / rollback                                                                                                             |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Docker install touches the host (sudo, systemd, group) | Step 0.1 is isolated and reversible via `pacman -Rns`; do it first so image builds are verified early.                            |
+| SQLite allows a single replica                         | Compose must not scale `app`; README states it.                                                                                   |
 | No down-migrations (goose Up-only)                     | Restore the `DATA_DIR` backup to roll back; migrations are additive only. A Down section would also break the shared sqlc schema. |
-| goose/sqlc schema coupling                             | Keep migrations Up-only with marker comments; avoid `StatementBegin`/`Down` until verified against sqlc. |
-| File/DB inconsistency on delete                        | Delete DB row first, then file; log orphaned keys; `backup` can later add a GC pass.                   |
-| sqlc drift                                             | Generated code committed; `make sqlc-check` runs `sqlc generate` + `git diff --exit-code`.             |
-| Timezone bugs                                          | All date logic uses `Africa/Harare`; `time/tzdata` embedded; tests cover UTC-boundary.                 |
-| Self-hosted exposure                                   | Auth on by default; `AUTH_DISABLED` requires `TRUST_PROXY_AUTH`; security headers + origin checks.     |
+| goose/sqlc schema coupling                             | Keep migrations Up-only with marker comments; avoid `StatementBegin`/`Down` until verified against sqlc.                          |
+| File/DB inconsistency on delete                        | Delete DB row first, then file; log orphaned keys; `backup` can later add a GC pass.                                              |
+| sqlc drift                                             | Generated code committed; `make sqlc-check` runs `sqlc generate` + `git diff --exit-code`.                                        |
+| Timezone bugs                                          | All date logic uses `Africa/Harare`; `time/tzdata` embedded; tests cover UTC-boundary.                                            |
+| Self-hosted exposure                                   | Auth on by default; `AUTH_DISABLED` requires `TRUST_PROXY_AUTH`; security headers + origin checks.                                |
 
 ## Verification commands (summary)
 
@@ -499,23 +514,24 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 
 ## Progress Log
 
-| Date       | Step      | Note                                                                                        |
-| ---------- | --------- | ------------------------------------------------------------------------------------------- |
-| 2026-11-21 | Plan      | Approved decisions recorded; sqlc SQLite capabilities verified with a scratch probe.        |
-| 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added.   |
-| 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.            |
-| 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified. |
-| 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.              |
-| 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                  |
-| 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.           |
-| 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.      |
-| 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed. |
-| 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds. |
-| 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite. |
-| 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable. |
-| 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean. |
+| Date       | Step      | Note                                                                                                                                               |
+| ---------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-21 | Plan      | Approved decisions recorded; sqlc SQLite capabilities verified with a scratch probe.                                                               |
+| 2026-11-21 | M0.2–M0.3 | Toolchain confirmed (Go 1.27.4, sqlc v1.31.1, sqlite3). `PLAN.md` and `.gitignore` added.                                                          |
+| 2026-11-21 | M0.1      | Docker 29.10.0 + Compose 5.8.0 installed; daemon active; `hello-world` verified.                                                                   |
+| 2026-11-21 | M1.1      | Module initialized as `github.com/rgmaz/job-application-tracker`; deps pinned and verified.                                                        |
+| 2026-11-21 | M1.2      | Typed config with Harare default, auth/proxy guard, and 18 table-driven tests.                                                                     |
+| 2026-11-21 | M1.3      | Harare-aware `Clock`, embedded tzdata, UTC-boundary tests.                                                                                         |
+| 2026-11-21 | M1.4      | CLI (`serve`, `healthcheck`, stubs), `/healthz`, graceful shutdown; smoke-tested.                                                                  |
+| 2026-11-21 | Plan rev. | Migrations switched to goose v3.30.1; migrations/queries moved under `internal/store`.                                                             |
+| 2026-11-21 | M1.5      | Dockerfile, compose, .env.example, Makefile; image 3.9 MB compressed; compose smoke test passed.                                                   |
+| 2026-11-22 | M2.1      | goose migrations verified; added missing `settings` table and dropped zero-day terminal seeds.                                                     |
+| 2026-11-22 | M2.2      | sqlc queries for applications/events/documents/settings; filters and staleness checked against seeded SQLite.                                      |
+| 2026-11-22 | M2.3      | sqlc.yaml + generated `internal/store/db`; compile/build/vet clean and regeneration is byte-stable.                                                |
+| 2026-11-22 | M2.4      | `store.Open` pragmas + embedded goose runner; `jat migrate` and `serve` wired; race/vet clean.                                                     |
 | 2026-11-22 | M2.5      | Store integration tests cover CRUD, filters, derived staleness, cascade delete, dashboard, settings, events, documents; race/vet/gofmt/sqlc clean. |
-| 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work. |
-| 2026-11-23 | M3.1      | `model.Status` / `model.Source` with ordered lists, labels, terminality, and strict parsing; race suite clean. |
-| 2026-11-23 | M3.2      | Application service with transactional create/status/delete, shared validation, filtered list, and dashboard counts; race/vet clean. |
-| 2026-11-23 | M3.3      | Embedded layout + vendored htmx/Pico assets, per-page renderer, and date/status template funcs; render and asset tests pass. |
+| 2026-11-23 | M2.6      | Makefile targets verified; `lint` now fails on unformatted files, `test` runs with `-race`, and `BIN` overrides work.                              |
+| 2026-11-23 | M3.1      | `model.Status` / `model.Source` with ordered lists, labels, terminality, and strict parsing; race suite clean.                                     |
+| 2026-11-23 | M3.2      | Application service with transactional create/status/delete, shared validation, filtered list, and dashboard counts; race/vet clean.               |
+| 2026-11-23 | M3.3      | Embedded layout + vendored htmx/Pico assets, per-page renderer, and date/status template funcs; render and asset tests pass.                       |
+| 2026-11-24 | M3.4      | Application list/form/detail routes with filters, htmx rows and timeline fragments, 422 validation, flash redirects, and event service support.   |
