@@ -1,0 +1,65 @@
+{{define "content"}}
+<hgroup>
+  <h1>Dashboard</h1>
+  <p>Where your search stands right now.</p>
+</hgroup>
+
+<div class="grid">
+  <article>
+    <h2 data-count="total">{{.Counts.Total}}</h2>
+    <p>Total</p>
+  </article>
+  <article>
+    <h2 data-count="active">{{.Counts.Active}}</h2>
+    <p>Active</p>
+  </article>
+  <article>
+    <h2 data-count="interviewing">{{.Counts.Interviewing}}</h2>
+    <p>Interviewing</p>
+  </article>
+  <article>
+    <h2 data-count="offers">{{.Counts.Offers}}</h2>
+    <p>Offers</p>
+  </article>
+  <article>
+    <h2><a href="/applications?stale=1"><span data-count="stale">{{.Counts.Stale}}</span></a></h2>
+    <p>Stale</p>
+  </article>
+</div>
+
+<article>
+  <h2>Needs attention</h2>
+  <p class="muted">These applications are past their follow-up window.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Due</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{template "compact_rows" .Stale}}
+    </tbody>
+  </table>
+</article>
+
+<article>
+  <h2>Recently added</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Due</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{template "compact_rows" .Recent}}
+    </tbody>
+  </table>
+  <a href="/applications" role="button" class="secondary">View all applications</a>
+</article>
+{{end}}

@@ -30,6 +30,7 @@ func NewRouter(apps *service.ApplicationService, renderer *Renderer) http.Handle
 	mux.HandleFunc("GET /{$}", s.handleHome)
 	mux.Handle("GET /static/", staticHandler())
 
+	mux.HandleFunc("GET /dashboard", s.dashboard)
 	mux.HandleFunc("GET /applications", s.listApplications)
 	mux.HandleFunc("GET /applications/rows", s.applicationRows)
 	mux.HandleFunc("GET /applications/new", s.newApplicationForm)
@@ -45,7 +46,7 @@ func NewRouter(apps *service.ApplicationService, renderer *Renderer) http.Handle
 }
 
 func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/applications", http.StatusSeeOther)
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
 // ready reports whether the application dependencies were wired. Health-only

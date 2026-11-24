@@ -598,8 +598,8 @@ func TestRootRedirect(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303", rec.Code)
 	}
-	if got := rec.Header().Get("Location"); got != "/applications" {
-		t.Errorf("Location = %q, want /applications", got)
+	if got := rec.Header().Get("Location"); got != "/dashboard" {
+		t.Errorf("Location = %q, want /dashboard", got)
 	}
 }
 

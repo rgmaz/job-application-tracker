@@ -1,0 +1,14 @@
+{{define "compact_rows"}}
+{{range .}}
+<tr>
+  <td><a href="/applications/{{.ID}}">{{.Company}}</a></td>
+  <td>{{.Role}}</td>
+  <td><span class="badge{{if isTerminal .Status}} terminal{{end}}">{{statusLabel .Status}}</span></td>
+  <td>{{if .DueOn}}{{fmtDate .DueOn}}{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>
+{{else}}
+<tr>
+  <td colspan="4" class="muted">Nothing here.</td>
+</tr>
+{{end}}
+{{end}}
