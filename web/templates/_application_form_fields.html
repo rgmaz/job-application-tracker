@@ -1,0 +1,70 @@
+{{define "application_form_fields"}}
+<div class="grid">
+  <label>Company *
+    <input type="text" name="company" value="{{.Form.Company}}" required>
+    {{with .Errors.company}}<small class="error">{{.}}</small>{{end}}
+  </label>
+  <label>Role *
+    <input type="text" name="role" value="{{.Form.Role}}" required>
+    {{with .Errors.role}}<small class="error">{{.}}</small>{{end}}
+  </label>
+</div>
+
+<div class="grid">
+  <label>Location
+    <input type="text" name="location" value="{{.Form.Location}}">
+  </label>
+  <label>Job URL
+    <input type="url" name="job_url" value="{{.Form.JobURL}}" placeholder="https://...">
+  </label>
+</div>
+
+<div class="grid">
+  <label>Source
+    <select name="source">
+      {{range .Sources}}<option value="{{.}}"{{if eq $.Form.Source .}} selected{{end}}>{{sourceLabel .}}</option>{{end}}
+    </select>
+    {{with .Errors.source}}<small class="error">{{.}}</small>{{end}}
+  </label>
+  <label>Applied on
+    <input type="date" name="applied_on" value="{{.Form.AppliedOn}}">
+    {{with .Errors.applied_on}}<small class="error">{{.}}</small>{{end}}
+  </label>
+</div>
+
+{{if not .IsEdit}}
+<label>Status
+  <select name="status">
+    {{range .Statuses}}<option value="{{.}}"{{if eq $.Form.Status .}} selected{{end}}>{{statusLabel .}}</option>{{end}}
+  </select>
+  {{with .Errors.status}}<small class="error">{{.}}</small>{{end}}
+</label>
+{{end}}
+
+<div class="grid">
+  <label>Follow-up on
+    <input type="date" name="follow_up_on" value="{{.Form.FollowUpOn}}">
+    {{with .Errors.follow_up_on}}<small class="error">{{.}}</small>{{end}}
+  </label>
+  <label>Contact name
+    <input type="text" name="contact_name" value="{{.Form.ContactName}}">
+  </label>
+</div>
+
+<div class="grid">
+  <label>Contact email
+    <input type="email" name="contact_email" value="{{.Form.ContactEmail}}">
+  </label>
+  <label>Email subject
+    <input type="text" name="email_subject" value="{{.Form.EmailSubject}}">
+  </label>
+</div>
+
+<label>Email link
+  <input type="url" name="email_link" value="{{.Form.EmailLink}}" placeholder="https://...">
+</label>
+
+<label>Notes
+  <textarea name="notes" rows="4">{{.Form.Notes}}</textarea>
+</label>
+{{end}}

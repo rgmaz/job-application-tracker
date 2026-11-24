@@ -80,6 +80,31 @@ type CreateApplicationInput struct {
 	Status string
 }
 
+// EventTypeOption is a user-authored event type offered by the UI.
+type EventTypeOption struct {
+	Value string
+	Label string
+}
+
+// UserEventTypes are the timeline event types a person can add by hand.
+// status_change and document_added are reserved for the service so the
+// timeline cannot claim a transition that never happened.
+var UserEventTypes = []EventTypeOption{
+	{Value: "note", Label: "Note"},
+	{Value: "email_sent", Label: "Email sent"},
+	{Value: "email_received", Label: "Email received"},
+}
+
+// ValidUserEventType reports whether raw is a user-authored event type.
+func ValidUserEventType(raw string) bool {
+	for _, option := range UserEventTypes {
+		if option.Value == raw {
+			return true
+		}
+	}
+	return false
+}
+
 // ListFilter narrows List. Empty strings and a zero Limit mean "no filter" and
 // "default page size" respectively.
 type ListFilter struct {
@@ -353,6 +378,50 @@ func (s *ApplicationService) List(ctx context.Context, filter ListFilter) ([]sto
 		return nil, fmt.Errorf("list applications: %w", err)
 	}
 	return rows, nil
+}
+
+// AddEvent appends a user-authored timeline event. Only note/email types are
+// accepted so status and document history stays service-owned.
+func (s *ApplicationService) AddEvent(ctx context.Context, id int64, rawType, rawBody string) (storedb.Event, error) {
+	eventType := strings.TrimSpace(rawType)
+	body := strings.TrimSpace(rawBody)
+
+	errs := make(map[string]string)
+	if !ValidUserEventType(eventType) {
+		errs["type"] = "Choose a valid event type."
+	}
+	if body == "" {
+		errs["body"] = "Enter a note or message."
+	}
+	if len(errs) > 0 {
+		return storedb.Event{}, &ValidationError{Fields: errs}
+	}
+
+	if _, err := s.q.GetApplication(ctx, id); err != nil {
+		return storedb.Event{}, fmt.Errorf("get application %d: %w", id, err)
+	}
+
+	now := s.clock.Now()
+	event, err := s.q.CreateEvent(ctx, storedb.CreateEventParams{
+		ApplicationID: id,
+		Type:          eventType,
+		Body:          &body,
+		OccurredAt:    now.Unix(),
+		CreatedAt:     now.Unix(),
+	})
+	if err != nil {
+		return storedb.Event{}, fmt.Errorf("add event to application %d: %w", id, err)
+	}
+	return event, nil
+}
+
+// ListEvents returns an application's timeline, newest first.
+func (s *ApplicationService) ListEvents(ctx context.Context, id int64) ([]storedb.Event, error) {
+	events, err := s.q.ListEvents(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list events for application %d: %w", id, err)
+	}
+	return events, nil
 }
 
 // Dashboard returns the headline counts for the dashboard.

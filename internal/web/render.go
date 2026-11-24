@@ -74,20 +74,30 @@ func NewRenderer(clock *timeutil.Clock) (*Renderer, error) {
 // Render executes page into a buffer before writing, so a template error can
 // still become a clean 500 instead of a partial response.
 func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any) error {
+	return r.render(w, status, page, "layout", data)
+}
+
+// RenderPartial executes one named template from page's set. Handlers use it
+// for htmx fragments so a swap never returns the surrounding layout.
+func (r *Renderer) RenderPartial(w http.ResponseWriter, status int, page, name string, data any) error {
+	return r.render(w, status, page, name, data)
+}
+
+func (r *Renderer) render(w http.ResponseWriter, status int, page, name string, data any) error {
 	tmpl, ok := r.pages[page]
 	if !ok {
 		return fmt.Errorf("web: unknown page %q", page)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "layout", data); err != nil {
-		return fmt.Errorf("web: render %q: %w", page, err)
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		return fmt.Errorf("web: render %q/%q: %w", page, name, err)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if _, err := buf.WriteTo(w); err != nil {
-		return fmt.Errorf("web: write %q: %w", page, err)
+		return fmt.Errorf("web: write %q/%q: %w", page, name, err)
 	}
 	return nil
 }
@@ -108,6 +118,25 @@ func templateFuncs(clock *timeutil.Clock) template.FuncMap {
 		"fmtDateTime": func(value any) string { return formatDateTime(clock, value) },
 		"statusLabel": func(value any) string {
 			return model.Status(fmt.Sprint(value)).Label()
+		},
+		"sourceLabel": func(value any) string {
+			return model.Source(fmt.Sprint(value)).Label()
+		},
+		"eventLabel": func(value any) string {
+			switch raw := fmt.Sprint(value); raw {
+			case "status_change":
+				return "Status"
+			case "note":
+				return "Note"
+			case "email_sent":
+				return "Email sent"
+			case "email_received":
+				return "Email received"
+			case "document_added":
+				return "Document"
+			default:
+				return raw
+			}
 		},
 		"isTerminal": func(value any) bool {
 			return model.Status(fmt.Sprint(value)).IsTerminal()

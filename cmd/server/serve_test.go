@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rgmaz/job-application-tracker/internal/store"
+	"github.com/rgmaz/job-application-tracker/internal/web"
 )
 
 func TestServeListener(t *testing.T) {
@@ -26,7 +27,7 @@ func TestServeListener(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- serveListener(ctx, cfg, ln, io.Discard)
+		errCh <- serveListener(ctx, cfg, ln, web.NewRouter(nil, nil), io.Discard)
 	}()
 
 	client := &http.Client{Timeout: 2 * time.Second}

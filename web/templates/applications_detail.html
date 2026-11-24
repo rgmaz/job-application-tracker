@@ -1,0 +1,59 @@
+{{define "content"}}
+<hgroup>
+  <h1>{{.App.Company}}</h1>
+  <p>{{.App.Role}}{{with .App.Location}} · {{.}}{{end}}</p>
+</hgroup>
+
+<div class="actions">
+  <span class="badge{{if isTerminal .App.Status}} terminal{{end}}">{{statusLabel .App.Status}}</span>
+  {{if .App.JobUrl}}<a href="{{.App.JobUrl}}" target="_blank" rel="noopener noreferrer">Job ad</a>{{end}}
+  <a href="{{.DetailURL}}/edit" role="button" class="secondary">Edit</a>
+  <form method="post" action="{{.DetailURL}}/delete" data-confirm="Delete this application and its timeline?">
+    <button type="submit" class="contrast">Delete</button>
+  </form>
+</div>
+
+<article>
+  <h2>Status</h2>
+  <form method="post" action="{{.DetailURL}}/status" class="actions">
+    <select name="status">
+      {{range .Statuses}}<option value="{{.}}"{{if eq $.App.Status .}} selected{{end}}>{{statusLabel .}}</option>{{end}}
+    </select>
+    <button type="submit">Update status</button>
+  </form>
+  {{with .Errors.status}}<small class="error">{{.}}</small>{{end}}
+</article>
+
+<article>
+  <dl>
+    <dt>Source</dt>
+    <dd>{{sourceLabel .App.Source}}</dd>
+    <dt>Applied on</dt>
+    <dd>{{fmtDate .App.AppliedOn}}</dd>
+    <dt>Status changed</dt>
+    <dd>{{fmtDate .App.StatusChangedOn}}</dd>
+    {{with .App.FollowUpOn}}
+    <dt>Follow-up on</dt>
+    <dd>{{fmtDate .}}</dd>
+    {{end}}
+    {{with .App.ContactName}}
+    <dt>Contact</dt>
+    <dd>{{.}}{{with $.App.ContactEmail}} · {{.}}{{end}}</dd>
+    {{end}}
+    {{with .App.EmailSubject}}
+    <dt>Email subject</dt>
+    <dd>{{.}}</dd>
+    {{end}}
+    {{with .App.EmailLink}}
+    <dt>Email link</dt>
+    <dd><a href="{{.}}">{{.}}</a></dd>
+    {{end}}
+  </dl>
+  {{with .App.Notes}}<p>{{.}}</p>{{end}}
+</article>
+
+<article>
+  <h2>Timeline</h2>
+  {{template "timeline_block" .}}
+</article>
+{{end}}

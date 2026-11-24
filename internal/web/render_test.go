@@ -82,6 +82,8 @@ func TestTemplateFuncs(t *testing.T) {
 	fmtDate := funcs["fmtDate"].(func(any) string)
 	fmtDateTime := funcs["fmtDateTime"].(func(any) string)
 	statusLabel := funcs["statusLabel"].(func(any) string)
+	sourceLabel := funcs["sourceLabel"].(func(any) string)
+	eventLabel := funcs["eventLabel"].(func(any) string)
 	isTerminal := funcs["isTerminal"].(func(any) bool)
 
 	date := "2026-11-23"
@@ -132,6 +134,38 @@ func TestTemplateFuncs(t *testing.T) {
 		}
 		if got := isTerminal(tt.status); got != tt.terminal {
 			t.Errorf("isTerminal(%q) = %v, want %v", tt.status, got, tt.terminal)
+		}
+	}
+
+	sources := []struct {
+		source string
+		label  string
+	}{
+		{source: "linkedin", label: "LinkedIn"},
+		{source: "company_site", label: "Company site"},
+		{source: "other", label: "Other"},
+		{source: "unknown", label: "unknown"},
+	}
+	for _, tt := range sources {
+		if got := sourceLabel(tt.source); got != tt.label {
+			t.Errorf("sourceLabel(%q) = %q, want %q", tt.source, got, tt.label)
+		}
+	}
+
+	events := []struct {
+		eventType string
+		label     string
+	}{
+		{eventType: "status_change", label: "Status"},
+		{eventType: "note", label: "Note"},
+		{eventType: "email_sent", label: "Email sent"},
+		{eventType: "email_received", label: "Email received"},
+		{eventType: "document_added", label: "Document"},
+		{eventType: "custom", label: "custom"},
+	}
+	for _, tt := range events {
+		if got := eventLabel(tt.eventType); got != tt.label {
+			t.Errorf("eventLabel(%q) = %q, want %q", tt.eventType, got, tt.label)
 		}
 	}
 }

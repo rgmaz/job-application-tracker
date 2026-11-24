@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/rgmaz/job-application-tracker/internal/config"
+	"github.com/rgmaz/job-application-tracker/internal/service"
 	"github.com/rgmaz/job-application-tracker/internal/store"
+	"github.com/rgmaz/job-application-tracker/internal/timeutil"
 	"github.com/rgmaz/job-application-tracker/internal/web"
 )
 
@@ -36,18 +38,25 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 		return err
 	}
 
+	clock := timeutil.New(cfg.Location)
+	renderer, err := web.NewRenderer(clock)
+	if err != nil {
+		return fmt.Errorf("create web renderer: %w", err)
+	}
+	apps := service.NewApplications(db, clock)
+
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr(), err)
 	}
-	return serveListener(ctx, cfg, ln, stderr)
+	return serveListener(ctx, cfg, ln, web.NewRouter(apps, renderer), stderr)
 }
 
-func serveListener(ctx context.Context, cfg config.Config, ln net.Listener, stderr io.Writer) error {
+func serveListener(ctx context.Context, cfg config.Config, ln net.Listener, handler http.Handler, stderr io.Writer) error {
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	srv := &http.Server{
-		Handler:           web.NewRouter(),
+		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

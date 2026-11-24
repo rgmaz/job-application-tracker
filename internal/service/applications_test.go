@@ -630,6 +630,100 @@ func TestApplicationList(t *testing.T) {
 	}
 }
 
+func TestApplicationEvents(t *testing.T) {
+	t.Parallel()
+
+	loc := harare(t)
+	now := time.Date(2026, 11, 23, 9, 30, 0, 0, loc)
+	f := newFixture(t, now)
+	ctx := context.Background()
+
+	app := f.create(t, service.CreateApplicationInput{ApplicationFields: validInput()})
+
+	f.clock.now = now.Add(time.Hour)
+	event, err := f.svc.AddEvent(ctx, app.ID, "note", "  Called the recruiter  ")
+	if err != nil {
+		t.Fatalf("AddEvent: %v", err)
+	}
+	if event.Type != "note" || event.Body == nil || *event.Body != "Called the recruiter" {
+		t.Errorf("event = %+v, want note %q", event, "Called the recruiter")
+	}
+	if event.OccurredAt != f.clock.now.Unix() || event.CreatedAt != f.clock.now.Unix() {
+		t.Errorf("event occurred/created = %d/%d, want %d", event.OccurredAt, event.CreatedAt, f.clock.now.Unix())
+	}
+
+	events, err := f.svc.ListEvents(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %d, want 2", len(events))
+	}
+	if events[0].ID != event.ID {
+		t.Errorf("newest event = %d, want %d", events[0].ID, event.ID)
+	}
+
+	tests := []struct {
+		name       string
+		eventType  string
+		body       string
+		wantFields []string
+	}{
+		{
+			name:       "status change is reserved",
+			eventType:  "status_change",
+			body:       "should not be user-authored",
+			wantFields: []string{"type"},
+		},
+		{
+			name:       "document added is reserved",
+			eventType:  "document_added",
+			body:       "should not be user-authored",
+			wantFields: []string{"type"},
+		},
+		{
+			name:       "unknown type",
+			eventType:  "bogus",
+			body:       "hello",
+			wantFields: []string{"type"},
+		},
+		{
+			name:       "empty body",
+			eventType:  "note",
+			body:       "   ",
+			wantFields: []string{"body"},
+		},
+		{
+			name:       "both invalid",
+			eventType:  "",
+			body:       "",
+			wantFields: []string{"body", "type"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := f.svc.AddEvent(ctx, app.ID, tt.eventType, tt.body)
+			fields := validationFields(t, err)
+			if got := sortedKeys(fields); !reflect.DeepEqual(got, tt.wantFields) {
+				t.Errorf("fields = %v, want %v", got, tt.wantFields)
+			}
+		})
+	}
+
+	if _, err := f.svc.AddEvent(ctx, app.ID+1000, "note", "missing"); !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("AddEvent(missing) error = %v, want sql.ErrNoRows", err)
+	}
+
+	events, err = f.svc.ListEvents(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("ListEvents after failures: %v", err)
+	}
+	if len(events) != 2 {
+		t.Errorf("events after failed adds = %d, want 2", len(events))
+	}
+}
+
 func TestApplicationDashboard(t *testing.T) {
 	t.Parallel()
 

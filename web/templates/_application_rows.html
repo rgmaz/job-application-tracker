@@ -1,0 +1,22 @@
+{{define "application_rows"}}
+<tbody id="application-rows">
+  {{range .Rows}}
+  <tr>
+    <td>
+      <a href="/applications/{{.ID}}">{{.Company}}</a>
+      {{if .IsStale}}<span class="stale">stale</span>{{end}}
+    </td>
+    <td>{{.Role}}</td>
+    <td><span class="badge{{if isTerminal .Status}} terminal{{end}}">{{statusLabel .Status}}</span></td>
+    <td>{{with .Location}}{{.}}{{end}}</td>
+    <td>{{sourceLabel .Source}}</td>
+    <td>{{if .DueOn}}{{fmtDate .DueOn}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{fmtDate .AppliedOn}}</td>
+  </tr>
+  {{else}}
+  <tr>
+    <td colspan="7" class="muted">No applications match these filters.</td>
+  </tr>
+  {{end}}
+</tbody>
+{{end}}

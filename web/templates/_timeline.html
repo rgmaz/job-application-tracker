@@ -1,0 +1,39 @@
+{{define "timeline"}}
+<ul class="timeline" id="timeline">
+  {{range .Events}}
+  <li>
+    <strong>{{eventLabel .Type}}</strong>
+    {{with .Body}}<span>{{.}}</span>{{end}}
+    <br><small class="muted">{{fmtDateTime .OccurredAt}}</small>
+  </li>
+  {{else}}
+  <li class="muted">No events yet.</li>
+  {{end}}
+</ul>
+{{end}}
+
+{{define "timeline_block"}}
+<section id="timeline-block">
+  {{template "timeline" .}}
+
+  <form method="post"
+        action="{{.DetailURL}}/events"
+        hx-post="{{.DetailURL}}/events"
+        hx-target="#timeline-block"
+        hx-swap="outerHTML">
+    <div class="grid">
+      <label>Type
+        <select name="type">
+          {{range .EventTypes}}<option value="{{.Value}}">{{.Label}}</option>{{end}}
+        </select>
+        {{with .Errors.type}}<small class="error">{{.}}</small>{{end}}
+      </label>
+      <label>Message
+        <input type="text" name="body" placeholder="What happened?">
+        {{with .Errors.body}}<small class="error">{{.}}</small>{{end}}
+      </label>
+    </div>
+    <button type="submit" class="secondary">Add to timeline</button>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,15 @@
+{{define "content"}}
+<hgroup>
+  <h1>{{if .IsEdit}}Edit application{{else}}New application{{end}}</h1>
+  <p>{{if .IsEdit}}Update the details for this role.{{else}}Record a role you have applied to.{{end}}</p>
+</hgroup>
+
+<form method="post" action="{{.Action}}">
+  {{template "application_form_fields" .}}
+
+  <div class="actions">
+    <button type="submit">{{if .IsEdit}}Save changes{{else}}Create application{{end}}</button>
+    <a href="{{if .IsEdit}}{{.DetailURL}}{{else}}/applications{{end}}" role="button" class="secondary">Cancel</a>
+  </div>
+</form>
+{{end}}

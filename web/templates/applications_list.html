@@ -1,0 +1,51 @@
+{{define "content"}}
+<hgroup>
+  <h1>Applications</h1>
+  <p>Track each role from application through offer.</p>
+</hgroup>
+
+<p><a href="/applications/new" role="button">New application</a></p>
+
+<form class="filters"
+      hx-get="/applications/rows"
+      hx-target="#application-rows"
+      hx-swap="outerHTML"
+      hx-trigger="change, keyup changed delay:400ms, submit">
+  <div class="grid">
+    <label>Status
+      <select name="status">
+        <option value="">Any status</option>
+        {{range .Statuses}}<option value="{{.}}"{{if eq $.Filter.Status .}} selected{{end}}>{{statusLabel .}}</option>{{end}}
+      </select>
+      {{with .Errors.status}}<small class="error">{{.}}</small>{{end}}
+    </label>
+    <label>Source
+      <select name="source">
+        <option value="">Any source</option>
+        {{range .Sources}}<option value="{{.}}"{{if eq $.Filter.Source .}} selected{{end}}>{{sourceLabel .}}</option>{{end}}
+      </select>
+      {{with .Errors.source}}<small class="error">{{.}}</small>{{end}}
+    </label>
+    <label>Search
+      <input type="search" name="q" value="{{.Filter.Query}}" placeholder="Company, role, or notes">
+    </label>
+  </div>
+  <label><input type="checkbox" name="stale" value="1"{{if .Filter.StaleOnly}} checked{{end}}> Stale only</label>
+  <button type="submit" class="secondary">Filter</button>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Company</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th>Location</th>
+      <th>Source</th>
+      <th>Due</th>
+      <th>Applied</th>
+    </tr>
+  </thead>
+  {{template "application_rows" .}}
+</table>
+{{end}}
