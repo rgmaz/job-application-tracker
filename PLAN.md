@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M3 in progress — 3.4 complete; next 3.5 (dashboard)**
+- Current phase: **M3 complete — next 4.1 (file storage package)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -392,11 +392,19 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       status, events, delete, root, and static tests cover rendering, filters,
       htmx fragments, redirects, 422 re-renders, and 404s against a temp store;
       race/vet/gofmt/sqlc clean.
-- [ ] **3.5 Dashboard**
-    - Targets: `internal/web/dashboard.go`, `web/templates/dashboard.html`
-    - Changes: counts (total/active/interviewing/offers/stale), stale list,
-      recent applications.
-    - Verify: dashboard reflects seeded fixtures; manual smoke via `make run`.
+- [x] **3.5 Dashboard**
+    - Targets: `internal/web/dashboard.go`, `internal/web/dashboard_test.go`,
+      `web/templates/dashboard.html`, `web/templates/_compact_rows.html`,
+      `internal/web/router.go`
+    - Changes: `GET /dashboard` shows total/active/interviewing/offers/stale
+      counts, a stale list capped at 10, and the 5 most recently added
+      applications. The stale count links to the filtered list, and the root
+      now redirects to the dashboard.
+    - Verify: `go test ./internal/web -run TestDashboard` covers seeded counts,
+      stale-only filtering, the recent list, the empty state, active nav, and
+      the root redirect. A manual `serve` smoke test created an application,
+      found it through the list filter, and rendered its initial timeline
+      event.
 
 ### M4 — Documents
 
@@ -535,3 +543,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-23 | M3.2      | Application service with transactional create/status/delete, shared validation, filtered list, and dashboard counts; race/vet clean.               |
 | 2026-11-23 | M3.3      | Embedded layout + vendored htmx/Pico assets, per-page renderer, and date/status template funcs; render and asset tests pass.                       |
 | 2026-11-24 | M3.4      | Application list/form/detail routes with filters, htmx rows and timeline fragments, 422 validation, flash redirects, and event service support.   |
+| 2026-11-24 | M3.5      | Dashboard counts, stale list, and recent applications; root redirects to the dashboard; seeded tests and a live serve smoke test pass.            |
