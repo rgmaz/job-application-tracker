@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M3 complete — next 4.1 (file storage package)**
+- Current phase: **M4 in progress — 4.1 complete; next 4.2 (document service)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -408,7 +408,7 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
 
 ### M4 — Documents
 
-- [ ] **4.1 File storage package**
+- [x] **4.1 File storage package**
     - Targets: `internal/files/files.go`, `internal/files/files_test.go`
     - Changes: random 16-byte key, `files/<key>` path (never user-controlled),
       streaming copy with size cap, sha256, first-512-byte MIME sniff, reject
@@ -544,3 +544,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-23 | M3.3      | Embedded layout + vendored htmx/Pico assets, per-page renderer, and date/status template funcs; render and asset tests pass.                       |
 | 2026-11-24 | M3.4      | Application list/form/detail routes with filters, htmx rows and timeline fragments, 422 validation, flash redirects, and event service support.   |
 | 2026-11-24 | M3.5      | Dashboard counts, stale list, and recent applications; root redirects to the dashboard; seeded tests and a live serve smoke test pass.            |
+| 2026-11-25 | M4.1      | Random-key file store with size cap, sha256, MIME sniffing, HTML/XHTML/SVG rejection, name sanitisation, and idempotent delete; race/vet clean.    |
