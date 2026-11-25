@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M4 in progress — 4.2 complete; next 4.3 (document handlers)**
+- Current phase: **M4 complete — next 5.1 (settings service and page)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -420,13 +420,18 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       tx (file removed on tx failure); list/get/delete; delete removes file after
       successful DB delete, logging orphans.
     - Verify: `go test ./internal/service -run TestDocument`.
-- [ ] **4.3 Document handlers and UI**
+- [x] **4.3 Document handlers and UI**
     - Targets: `internal/web/documents.go`, `web/templates/_documents.html`
     - Changes: multipart upload with `MAX_UPLOAD_MB`, authenticated download with
       `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`,
       cache headers; delete action; kind selector.
     - Verify: handler test uploads a PDF, downloads it byte-identical, rejects a
       `.html` upload; container restart retains the file via the volume.
+    - Notes: the download route carries attachment/nosniff/no-store headers and
+      will sit behind the M5 auth middleware. Upload errors re-render the detail
+      page with 422 (413 when the multipart body itself exceeds the limit).
+      Application delete now removes the cascade's files via `DeleteStored`.
+      Verified with web tests, a live serve restart, and a Docker volume restart.
 
 ### M5 — Settings, staleness UI, auth
 
@@ -546,3 +551,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-24 | M3.5      | Dashboard counts, stale list, and recent applications; root redirects to the dashboard; seeded tests and a live serve smoke test pass.            |
 | 2026-11-25 | M4.1      | Random-key file store with size cap, sha256, MIME sniffing, HTML/XHTML/SVG rejection, name sanitisation, and idempotent delete; race/vet clean.    |
 | 2026-11-25 | M4.2      | Document upload/list/get/open/delete service; upload commits row + event with file cleanup on failure; delete logs orphans; tests cover validation. |
+| 2026-11-25 | M4.3      | Document upload/download/delete routes, kind selector, detail-page list, attachment/nosniff headers; live and Docker restart smoke tests pass.      |
