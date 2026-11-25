@@ -58,7 +58,7 @@ func TestHealthcheck(t *testing.T) {
 	}{
 		{
 			name:    "healthy",
-			handler: web.NewRouter(nil, nil),
+			handler: web.NewRouter(nil, nil, nil),
 		},
 		{
 			name: "unexpected status",

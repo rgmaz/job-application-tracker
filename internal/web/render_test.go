@@ -85,6 +85,8 @@ func TestTemplateFuncs(t *testing.T) {
 	sourceLabel := funcs["sourceLabel"].(func(any) string)
 	eventLabel := funcs["eventLabel"].(func(any) string)
 	isTerminal := funcs["isTerminal"].(func(any) bool)
+	documentKindLabel := funcs["documentKindLabel"].(func(any) string)
+	fileSize := funcs["fileSize"].(func(any) string)
 
 	date := "2026-11-23"
 	if got := fmtDate(date); got != "23 Nov 2026" {
@@ -166,6 +168,38 @@ func TestTemplateFuncs(t *testing.T) {
 	for _, tt := range events {
 		if got := eventLabel(tt.eventType); got != tt.label {
 			t.Errorf("eventLabel(%q) = %q, want %q", tt.eventType, got, tt.label)
+		}
+	}
+
+	kinds := []struct {
+		kind  string
+		label string
+	}{
+		{kind: "job_ad", label: "Job ad"},
+		{kind: "cv", label: "CV"},
+		{kind: "cover_letter", label: "Cover letter"},
+		{kind: "email", label: "Email"},
+		{kind: "other", label: "Other"},
+		{kind: "passport", label: "passport"},
+	}
+	for _, tt := range kinds {
+		if got := documentKindLabel(tt.kind); got != tt.label {
+			t.Errorf("documentKindLabel(%q) = %q, want %q", tt.kind, got, tt.label)
+		}
+	}
+
+	sizes := []struct {
+		size int64
+		want string
+	}{
+		{size: 0, want: "0 B"},
+		{size: 512, want: "512 B"},
+		{size: 1536, want: "1.5 KB"},
+		{size: 2 << 20, want: "2.0 MB"},
+	}
+	for _, tt := range sizes {
+		if got := fileSize(tt.size); got != tt.want {
+			t.Errorf("fileSize(%d) = %q, want %q", tt.size, got, tt.want)
 		}
 	}
 }

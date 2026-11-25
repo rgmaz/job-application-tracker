@@ -3,6 +3,8 @@ package web
 import (
 	"context"
 	"database/sql"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rgmaz/job-application-tracker/internal/files"
 	"github.com/rgmaz/job-application-tracker/internal/service"
 	"github.com/rgmaz/job-application-tracker/internal/store"
 	storedb "github.com/rgmaz/job-application-tracker/internal/store/db"
@@ -27,10 +30,12 @@ func (c *webClock) Now() time.Time { return c.now }
 func (c *webClock) Today() string { return c.now.Format(timeutil.DateLayout) }
 
 type webFixture struct {
-	router http.Handler
-	svc    *service.ApplicationService
-	db     *sql.DB
-	clock  *webClock
+	router   http.Handler
+	svc      *service.ApplicationService
+	docs     *service.DocumentService
+	db       *sql.DB
+	clock    *webClock
+	filesDir string
 }
 
 func newWebFixture(t *testing.T) *webFixture {
@@ -41,8 +46,9 @@ func newWebFixture(t *testing.T) *webFixture {
 		t.Fatalf("load Africa/Harare: %v", err)
 	}
 
+	dir := t.TempDir()
 	ctx := context.Background()
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "app.db"))
+	db, err := store.Open(ctx, filepath.Join(dir, "app.db"))
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
@@ -55,16 +61,25 @@ func newWebFixture(t *testing.T) *webFixture {
 	clock := &webClock{now: time.Date(2026, 11, 23, 9, 30, 0, 0, loc)}
 	svc := service.NewApplications(db, clock)
 
+	filesDir := filepath.Join(dir, "files")
+	fileStore, err := files.NewStore(filesDir, 1<<20)
+	if err != nil {
+		t.Fatalf("files.NewStore: %v", err)
+	}
+	docs := service.NewDocuments(db, clock, fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
 	renderer, err := NewRenderer(timeutil.New(loc))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
 	return &webFixture{
-		router: NewRouter(svc, renderer),
-		svc:    svc,
-		db:     db,
-		clock:  clock,
+		router:   NewRouter(svc, docs, renderer),
+		svc:      svc,
+		docs:     docs,
+		db:       db,
+		clock:    clock,
+		filesDir: filesDir,
 	}
 }
 

@@ -27,7 +27,7 @@ func TestServeListener(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- serveListener(ctx, cfg, ln, web.NewRouter(nil, nil), io.Discard)
+		errCh <- serveListener(ctx, cfg, ln, web.NewRouter(nil, nil, nil), io.Discard)
 	}()
 
 	client := &http.Client{Timeout: 2 * time.Second}

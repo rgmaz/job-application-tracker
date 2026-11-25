@@ -22,6 +22,9 @@ var flashMessages = map[string]string{
 	"status":  "Status updated.",
 	"note":    "Timeline updated.",
 	"deleted": "Application deleted.",
+
+	"document":         "Document uploaded.",
+	"document_deleted": "Document deleted.",
 }
 
 type applicationFilter struct {
@@ -82,11 +85,14 @@ func (v applicationFormView) DetailURL() string {
 
 type applicationDetailView struct {
 	PageData
-	App        storedb.Application
-	Events     []storedb.Event
-	Errors     map[string]string
-	Statuses   []model.Status
-	EventTypes []service.EventTypeOption
+	App           storedb.Application
+	Events        []storedb.Event
+	Documents     []storedb.Document
+	Errors        map[string]string
+	Statuses      []model.Status
+	EventTypes    []service.EventTypeOption
+	DocumentKinds []service.DocumentKindOption
+	MaxUploadMB   int64
 }
 
 func (v applicationDetailView) DetailURL() string {
@@ -200,12 +206,12 @@ func (s *server) applicationDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, events, err := s.loadDetail(r, id)
+	app, events, docs, err := s.loadDetail(r, id)
 	if err != nil {
 		writeLoadError(w, r, err)
 		return
 	}
-	s.renderDetail(w, r, http.StatusOK, app, events, nil)
+	s.renderDetail(w, r, http.StatusOK, app, events, docs, nil)
 }
 
 func (s *server) editApplicationForm(w http.ResponseWriter, r *http.Request) {
@@ -266,12 +272,12 @@ func (s *server) changeStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		app, events, loadErr := s.loadDetail(r, id)
+		app, events, docs, loadErr := s.loadDetail(r, id)
 		if loadErr != nil {
 			writeLoadError(w, r, loadErr)
 			return
 		}
-		s.renderDetail(w, r, http.StatusUnprocessableEntity, app, events, invalid.Fields)
+		s.renderDetail(w, r, http.StatusUnprocessableEntity, app, events, docs, invalid.Fields)
 		return
 	}
 
@@ -304,17 +310,17 @@ func (s *server) addEvent(w http.ResponseWriter, r *http.Request) {
 		if isHTMX(r) {
 			// htmx does not swap 4xx responses, so the fragment carries the
 			// error and the form stays usable in place.
-			view := s.detailView(r, storedb.Application{ID: id}, events, invalid.Fields)
+			view := s.detailView(r, storedb.Application{ID: id}, events, nil, invalid.Fields)
 			s.renderPartial(w, http.StatusOK, "applications_detail.html", "timeline_block", view)
 			return
 		}
 
-		app, loadErr := s.apps.Get(r.Context(), id)
+		app, detailEvents, docs, loadErr := s.loadDetail(r, id)
 		if loadErr != nil {
 			writeLoadError(w, r, loadErr)
 			return
 		}
-		s.renderDetail(w, r, http.StatusUnprocessableEntity, app, events, invalid.Fields)
+		s.renderDetail(w, r, http.StatusUnprocessableEntity, app, detailEvents, docs, invalid.Fields)
 		return
 	}
 
@@ -324,7 +330,7 @@ func (s *server) addEvent(w http.ResponseWriter, r *http.Request) {
 			writeLoadError(w, r, loadErr)
 			return
 		}
-		view := s.detailView(r, storedb.Application{ID: id}, events, nil)
+		view := s.detailView(r, storedb.Application{ID: id}, events, nil, nil)
 		s.renderPartial(w, http.StatusOK, "applications_detail.html", "timeline_block", view)
 		return
 	}
@@ -341,26 +347,33 @@ func (s *server) deleteApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Document files are deleted in M4; until then the cascade only removes
-	// rows and the returned storage keys are intentionally unused.
-	if _, err := s.apps.Delete(r.Context(), id); err != nil {
+	// The cascade removes document rows; the returned keys let us remove the
+	// bytes after the commit. DeleteStored logs orphans rather than failing the
+	// request.
+	keys, err := s.apps.Delete(r.Context(), id)
+	if err != nil {
 		writeLoadError(w, r, err)
 		return
 	}
+	s.docs.DeleteStored(r.Context(), keys)
 
 	http.Redirect(w, r, "/applications?flash=deleted", http.StatusSeeOther)
 }
 
-func (s *server) loadDetail(r *http.Request, id int64) (storedb.Application, []storedb.Event, error) {
+func (s *server) loadDetail(r *http.Request, id int64) (storedb.Application, []storedb.Event, []storedb.Document, error) {
 	app, err := s.apps.Get(r.Context(), id)
 	if err != nil {
-		return storedb.Application{}, nil, err
+		return storedb.Application{}, nil, nil, err
 	}
 	events, err := s.apps.ListEvents(r.Context(), id)
 	if err != nil {
-		return storedb.Application{}, nil, err
+		return storedb.Application{}, nil, nil, err
 	}
-	return app, events, nil
+	docs, err := s.docs.List(r.Context(), id)
+	if err != nil {
+		return storedb.Application{}, nil, nil, err
+	}
+	return app, events, docs, nil
 }
 
 func (s *server) formView(r *http.Request, form applicationForm, errs map[string]string, isEdit bool, id int64) applicationFormView {
@@ -379,19 +392,22 @@ func (s *server) formView(r *http.Request, form applicationForm, errs map[string
 	}
 }
 
-func (s *server) detailView(r *http.Request, app storedb.Application, events []storedb.Event, errs map[string]string) applicationDetailView {
+func (s *server) detailView(r *http.Request, app storedb.Application, events []storedb.Event, docs []storedb.Document, errs map[string]string) applicationDetailView {
 	return applicationDetailView{
-		PageData:   PageData{Title: app.Company, Flash: flashMessage(r), Nav: "applications"},
-		App:        app,
-		Events:     events,
-		Errors:     errs,
-		Statuses:   model.Statuses,
-		EventTypes: service.UserEventTypes,
+		PageData:      PageData{Title: app.Company, Flash: flashMessage(r), Nav: "applications"},
+		App:           app,
+		Events:        events,
+		Documents:     docs,
+		Errors:        errs,
+		Statuses:      model.Statuses,
+		EventTypes:    service.UserEventTypes,
+		DocumentKinds: service.DocumentKinds,
+		MaxUploadMB:   s.docs.MaxUploadBytes() >> 20,
 	}
 }
 
-func (s *server) renderDetail(w http.ResponseWriter, r *http.Request, status int, app storedb.Application, events []storedb.Event, errs map[string]string) {
-	s.render(w, status, "applications_detail.html", s.detailView(r, app, events, errs))
+func (s *server) renderDetail(w http.ResponseWriter, r *http.Request, status int, app storedb.Application, events []storedb.Event, docs []storedb.Document, errs map[string]string) {
+	s.render(w, status, "applications_detail.html", s.detailView(r, app, events, docs, errs))
 }
 
 func (s *server) renderForm(w http.ResponseWriter, status int, view applicationFormView) {

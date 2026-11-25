@@ -16,14 +16,15 @@ const staticCacheControl = "public, max-age=3600"
 // server holds the dependencies shared by the application handlers.
 type server struct {
 	apps     *service.ApplicationService
+	docs     *service.DocumentService
 	renderer *Renderer
 }
 
-// NewRouter returns the application's HTTP handler. Either dependency may be
-// nil for health-only use (the healthcheck command and its tests); the
-// application routes then answer 500 instead of panicking.
-func NewRouter(apps *service.ApplicationService, renderer *Renderer) http.Handler {
-	s := &server{apps: apps, renderer: renderer}
+// NewRouter returns the application's HTTP handler. Dependencies may be nil
+// for health-only use (the healthcheck command and its tests); the application
+// routes then answer 500 instead of panicking.
+func NewRouter(apps *service.ApplicationService, docs *service.DocumentService, renderer *Renderer) http.Handler {
+	s := &server{apps: apps, docs: docs, renderer: renderer}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
@@ -40,7 +41,10 @@ func NewRouter(apps *service.ApplicationService, renderer *Renderer) http.Handle
 	mux.HandleFunc("POST /applications/{id}", s.updateApplication)
 	mux.HandleFunc("POST /applications/{id}/status", s.changeStatus)
 	mux.HandleFunc("POST /applications/{id}/events", s.addEvent)
+	mux.HandleFunc("POST /applications/{id}/documents", s.uploadDocument)
 	mux.HandleFunc("POST /applications/{id}/delete", s.deleteApplication)
+	mux.HandleFunc("GET /documents/{id}/download", s.downloadDocument)
+	mux.HandleFunc("POST /documents/{id}/delete", s.deleteDocument)
 
 	return mux
 }
@@ -52,7 +56,7 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 // ready reports whether the application dependencies were wired. Health-only
 // routers are valid, so handlers guard instead of assuming.
 func (s *server) ready(w http.ResponseWriter) bool {
-	if s.apps == nil || s.renderer == nil {
+	if s.apps == nil || s.docs == nil || s.renderer == nil {
 		http.Error(w, "application routes are not configured", http.StatusInternalServerError)
 		return false
 	}

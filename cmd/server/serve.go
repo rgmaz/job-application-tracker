@@ -8,9 +8,11 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/rgmaz/job-application-tracker/internal/config"
+	"github.com/rgmaz/job-application-tracker/internal/files"
 	"github.com/rgmaz/job-application-tracker/internal/service"
 	"github.com/rgmaz/job-application-tracker/internal/store"
 	"github.com/rgmaz/job-application-tracker/internal/timeutil"
@@ -45,11 +47,18 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 	}
 	apps := service.NewApplications(db, clock)
 
+	fileStore, err := files.NewStore(filepath.Join(cfg.DataDir, "files"), cfg.MaxUploadBytes)
+	if err != nil {
+		return fmt.Errorf("open document store: %w", err)
+	}
+	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	docs := service.NewDocuments(db, clock, fileStore, logger)
+
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr(), err)
 	}
-	return serveListener(ctx, cfg, ln, web.NewRouter(apps, renderer), stderr)
+	return serveListener(ctx, cfg, ln, web.NewRouter(apps, docs, renderer), stderr)
 }
 
 func serveListener(ctx context.Context, cfg config.Config, ln net.Listener, handler http.Handler, stderr io.Writer) error {

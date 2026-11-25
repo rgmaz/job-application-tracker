@@ -52,6 +52,8 @@
   {{with .App.Notes}}<p>{{.}}</p>{{end}}
 </article>
 
+{{template "documents" .}}
+
 <article>
   <h2>Timeline</h2>
   {{template "timeline_block" .}}

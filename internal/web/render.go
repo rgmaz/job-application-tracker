@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rgmaz/job-application-tracker/internal/model"
+	"github.com/rgmaz/job-application-tracker/internal/service"
 	"github.com/rgmaz/job-application-tracker/internal/timeutil"
 	webassets "github.com/rgmaz/job-application-tracker/web"
 )
@@ -141,6 +142,38 @@ func templateFuncs(clock *timeutil.Clock) template.FuncMap {
 		"isTerminal": func(value any) bool {
 			return model.Status(fmt.Sprint(value)).IsTerminal()
 		},
+		"documentKindLabel": func(value any) string {
+			raw := fmt.Sprint(value)
+			for _, option := range service.DocumentKinds {
+				if option.Value == raw {
+					return option.Label
+				}
+			}
+			return raw
+		},
+		"fileSize": fileSize,
+	}
+}
+
+func fileSize(value any) string {
+	var n int64
+	switch v := value.(type) {
+	case int64:
+		n = v
+	case int:
+		n = int64(v)
+	default:
+		return fmt.Sprint(value)
+	}
+
+	const unit = 1024
+	switch {
+	case n < unit:
+		return fmt.Sprintf("%d B", n)
+	case n < unit*unit:
+		return fmt.Sprintf("%.1f KB", float64(n)/unit)
+	default:
+		return fmt.Sprintf("%.1f MB", float64(n)/(unit*unit))
 	}
 }
 
