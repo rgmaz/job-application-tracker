@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M4 in progress — 4.1 complete; next 4.2 (document service)**
+- Current phase: **M4 in progress — 4.2 complete; next 4.3 (document handlers)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -414,7 +414,7 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       streaming copy with size cap, sha256, first-512-byte MIME sniff, reject
       HTML/XHTML/SVG, delete by key.
     - Verify: `go test ./internal/files` (oversize, traversal name, rejected MIME).
-- [ ] **4.2 Document service and queries**
+- [x] **4.2 Document service and queries**
     - Targets: `internal/service/documents.go`, `..._test.go`
     - Changes: upload writes file then inserts row + `document_added` event in a
       tx (file removed on tx failure); list/get/delete; delete removes file after
@@ -545,3 +545,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-24 | M3.4      | Application list/form/detail routes with filters, htmx rows and timeline fragments, 422 validation, flash redirects, and event service support.   |
 | 2026-11-24 | M3.5      | Dashboard counts, stale list, and recent applications; root redirects to the dashboard; seeded tests and a live serve smoke test pass.            |
 | 2026-11-25 | M4.1      | Random-key file store with size cap, sha256, MIME sniffing, HTML/XHTML/SVG rejection, name sanitisation, and idempotent delete; race/vet clean.    |
+| 2026-11-25 | M4.2      | Document upload/list/get/open/delete service; upload commits row + event with file cleanup on failure; delete logs orphans; tests cover validation. |
