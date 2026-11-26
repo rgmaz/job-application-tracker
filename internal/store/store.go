@@ -32,6 +32,15 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("store: database path is empty")
 	}
 
+	// SQLite's file: URI treats the first path segment as an authority when
+	// the path is relative ("file://data/app.db"), so resolve to an absolute
+	// path before building the DSN.
+	resolved, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("store: resolve database path %q: %w", path, err)
+	}
+	path = resolved
+
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return nil, fmt.Errorf("store: create database directory %q: %w", dir, err)

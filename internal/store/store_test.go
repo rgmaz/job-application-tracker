@@ -35,6 +35,26 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+func TestOpenRelativePath(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	ctx := context.Background()
+	path := store.Path("./data")
+
+	db, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatalf("store.Open(%q): %v", path, err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if err := store.Migrate(ctx, db); err != nil {
+		t.Fatalf("store.Migrate: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join("data", store.DatabaseName)); err != nil {
+		t.Errorf("database file was not created: %v", err)
+	}
+}
+
 func currentVersion(t *testing.T, db *sql.DB) int64 {
 	t.Helper()
 
