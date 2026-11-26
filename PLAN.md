@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M5 in progress — 5.1 complete; next 5.2 (authentication)**
+- Current phase: **M5 in progress — 5.2 complete; next 5.3 (middleware and hardening)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -449,7 +449,7 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       settings service and the upcoming auth service can be added without a
       positional-argument pile-up. Verified by a backdated row whose `due_on`
       and `is_stale` change after the applied threshold moves from 14 to 1.
-- [ ] **5.2 Authentication**
+- [x] **5.2 Authentication**
     - Targets: `internal/service/auth.go`, `internal/web/auth.go`,
       `web/templates/{login,setup}.html`
     - Changes: argon2id hash/verify (constant time), first-run setup, login,
@@ -457,6 +457,14 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       in-memory login rate limit.
     - Verify: `go test ./internal/service -run TestPassword`; wrong password is
       rejected; cookie tampering is rejected.
+    - Notes: setup refuses to overwrite an existing password, so a reachable
+      setup page cannot reset the account. Session state is entirely in the
+      HMAC-SHA256 token, which means rotating the settings secret signs every
+      browser out. Cookies are `HttpOnly`, `SameSite=Lax`, `Path=/`, 30 days by
+      default, and `Secure` when `COOKIE_SECURE` is on. Login is limited to five
+      failures per client address per 15 minutes; the counter is in memory and
+      clears on restart. The routes are live but the auth gate arrives in 5.3.
+      Verified by service tests plus a live setup → login → logout smoke test.
 - [ ] **5.3 Middleware and hardening**
     - Targets: `internal/web/middleware.go`
     - Changes: auth gate, CSRF origin check on non-GET, CSP
@@ -561,3 +569,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-25 | M4.2      | Document upload/list/get/open/delete service; upload commits row + event with file cleanup on failure; delete logs orphans; tests cover validation. |
 | 2026-11-25 | M4.3      | Document upload/download/delete routes, kind selector, detail-page list, attachment/nosniff headers; live and Docker restart smoke tests pass.      |
 | 2026-11-26 | M5.1      | Settings service and page: validated 1–365 thresholds, effective timezone, argon2id password change, session-secret rotation; staleness test passes. |
+| 2026-11-26 | M5.2      | First-run setup, password login/logout, HMAC session cookie (30 days, HttpOnly/Lax), and a 5-per-15-minute login limit; live smoke passes.          |
