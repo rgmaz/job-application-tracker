@@ -17,33 +17,45 @@ const staticCacheControl = "public, max-age=3600"
 // health-only use (the healthcheck command and its tests); the application
 // routes then answer 500 instead of panicking.
 type Options struct {
-	Apps     *service.ApplicationService
-	Docs     *service.DocumentService
-	Settings *service.SettingsService
-	Renderer *Renderer
+	Apps         *service.ApplicationService
+	Docs         *service.DocumentService
+	Settings     *service.SettingsService
+	Auth         *service.AuthService
+	Renderer     *Renderer
+	CookieSecure bool
 }
 
 // server holds the dependencies shared by the application handlers.
 type server struct {
-	apps     *service.ApplicationService
-	docs     *service.DocumentService
-	settings *service.SettingsService
-	renderer *Renderer
+	apps         *service.ApplicationService
+	docs         *service.DocumentService
+	settings     *service.SettingsService
+	auth         *service.AuthService
+	renderer     *Renderer
+	cookieSecure bool
 }
 
 // NewRouter returns the application's HTTP handler.
 func NewRouter(opts Options) http.Handler {
 	s := &server{
-		apps:     opts.Apps,
-		docs:     opts.Docs,
-		settings: opts.Settings,
-		renderer: opts.Renderer,
+		apps:         opts.Apps,
+		docs:         opts.Docs,
+		settings:     opts.Settings,
+		auth:         opts.Auth,
+		renderer:     opts.Renderer,
+		cookieSecure: opts.CookieSecure,
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /{$}", s.handleHome)
 	mux.Handle("GET /static/", staticHandler())
+
+	mux.HandleFunc("GET /setup", s.setupForm)
+	mux.HandleFunc("POST /setup", s.setup)
+	mux.HandleFunc("GET /login", s.loginForm)
+	mux.HandleFunc("POST /login", s.login)
+	mux.HandleFunc("POST /logout", s.logout)
 
 	mux.HandleFunc("GET /dashboard", s.dashboard)
 	mux.HandleFunc("GET /settings", s.settingsPage)

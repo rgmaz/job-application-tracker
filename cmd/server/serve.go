@@ -47,6 +47,7 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 	}
 	apps := service.NewApplications(db, clock)
 	settings := service.NewSettings(db, cfg.Location)
+	auth := service.NewAuth(settings, clock, cfg.SessionTTL)
 
 	fileStore, err := files.NewStore(filepath.Join(cfg.DataDir, "files"), cfg.MaxUploadBytes)
 	if err != nil {
@@ -60,10 +61,12 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr(), err)
 	}
 	return serveListener(ctx, cfg, ln, web.NewRouter(web.Options{
-		Apps:     apps,
-		Docs:     docs,
-		Settings: settings,
-		Renderer: renderer,
+		Apps:         apps,
+		Docs:         docs,
+		Settings:     settings,
+		Auth:         auth,
+		Renderer:     renderer,
+		CookieSecure: cfg.CookieSecure,
 	}), stderr)
 }
 

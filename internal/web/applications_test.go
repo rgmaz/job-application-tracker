@@ -34,12 +34,18 @@ type webFixture struct {
 	svc      *service.ApplicationService
 	docs     *service.DocumentService
 	settings *service.SettingsService
+	auth     *service.AuthService
 	db       *sql.DB
 	clock    *webClock
 	filesDir string
 }
 
 func newWebFixture(t *testing.T) *webFixture {
+	t.Helper()
+	return newWebFixtureWithOptions(t, Options{})
+}
+
+func newWebFixtureWithOptions(t *testing.T, opts Options) *webFixture {
 	t.Helper()
 
 	loc, err := time.LoadLocation("Africa/Harare")
@@ -69,22 +75,25 @@ func newWebFixture(t *testing.T) *webFixture {
 	}
 	docs := service.NewDocuments(db, clock, fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	settings := service.NewSettings(db, loc)
+	auth := service.NewAuth(settings, clock, 720*time.Hour)
 
 	renderer, err := NewRenderer(timeutil.New(loc))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
+	opts.Apps = svc
+	opts.Docs = docs
+	opts.Settings = settings
+	opts.Auth = auth
+	opts.Renderer = renderer
+
 	return &webFixture{
-		router: NewRouter(Options{
-			Apps:     svc,
-			Docs:     docs,
-			Settings: settings,
-			Renderer: renderer,
-		}),
+		router:   NewRouter(opts),
 		svc:      svc,
 		docs:     docs,
 		settings: settings,
+		auth:     auth,
 		db:       db,
 		clock:    clock,
 		filesDir: filesDir,

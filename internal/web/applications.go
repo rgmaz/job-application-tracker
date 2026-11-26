@@ -29,6 +29,10 @@ var flashMessages = map[string]string{
 	"thresholds": "Thresholds updated.",
 	"password":   "Password changed.",
 	"sessions":   "Signed out everywhere.",
+
+	"welcome":    "Password set. You are signed in.",
+	"signed_out": "Signed out.",
+	"configured": "A password is already set. Sign in.",
 }
 
 type applicationFilter struct {

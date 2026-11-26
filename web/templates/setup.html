@@ -1,0 +1,19 @@
+{{define "content"}}
+<hgroup>
+  <h1>Set up</h1>
+  <p>Choose the password for this tracker.</p>
+</hgroup>
+
+<form method="post" action="/setup">
+  <label>Password
+    <input type="password" name="password" autocomplete="new-password" minlength="12" required autofocus>
+    {{with .Errors.password}}<small class="error">{{.}}</small>{{end}}
+  </label>
+  <label>Confirm password
+    <input type="password" name="confirm_password" autocomplete="new-password" minlength="12" required>
+    {{with .Errors.confirm_password}}<small class="error">{{.}}</small>{{end}}
+  </label>
+  <p class="muted">At least 12 characters.</p>
+  <button type="submit">Set password</button>
+</form>
+{{end}}
