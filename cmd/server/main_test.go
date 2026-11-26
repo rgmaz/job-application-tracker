@@ -123,7 +123,7 @@ func TestRunMigrate(t *testing.T) {
 func TestRunHealthcheck(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(web.NewRouter(nil, nil, nil))
+	srv := httptest.NewServer(web.NewRouter(web.Options{}))
 	t.Cleanup(srv.Close)
 
 	cfg := configForURL(t, srv.URL)

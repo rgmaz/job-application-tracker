@@ -33,6 +33,7 @@ type webFixture struct {
 	router   http.Handler
 	svc      *service.ApplicationService
 	docs     *service.DocumentService
+	settings *service.SettingsService
 	db       *sql.DB
 	clock    *webClock
 	filesDir string
@@ -67,6 +68,7 @@ func newWebFixture(t *testing.T) *webFixture {
 		t.Fatalf("files.NewStore: %v", err)
 	}
 	docs := service.NewDocuments(db, clock, fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	settings := service.NewSettings(db, loc)
 
 	renderer, err := NewRenderer(timeutil.New(loc))
 	if err != nil {
@@ -74,9 +76,15 @@ func newWebFixture(t *testing.T) *webFixture {
 	}
 
 	return &webFixture{
-		router:   NewRouter(svc, docs, renderer),
+		router: NewRouter(Options{
+			Apps:     svc,
+			Docs:     docs,
+			Settings: settings,
+			Renderer: renderer,
+		}),
 		svc:      svc,
 		docs:     docs,
+		settings: settings,
 		db:       db,
 		clock:    clock,
 		filesDir: filesDir,

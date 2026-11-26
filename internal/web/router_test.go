@@ -26,7 +26,7 @@ func TestHealthz(t *testing.T) {
 			t.Parallel()
 
 			rec := httptest.NewRecorder()
-			NewRouter(nil, nil, nil).ServeHTTP(rec, httptest.NewRequest(tt.method, "/healthz", nil))
+			NewRouter(Options{}).ServeHTTP(rec, httptest.NewRequest(tt.method, "/healthz", nil))
 
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
@@ -54,7 +54,7 @@ func TestUnknownPath(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewRouter(nil, nil, nil).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))
+	NewRouter(Options{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rec.Code)

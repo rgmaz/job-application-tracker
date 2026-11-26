@@ -1,0 +1,59 @@
+{{define "content"}}
+<hgroup>
+  <h1>Settings</h1>
+  <p>Staleness thresholds, timezone, password, and sessions.</p>
+</hgroup>
+
+<article>
+  <h2>Staleness thresholds</h2>
+  <p>An active application becomes stale when its status has not changed for this many days. Follow-up dates override the threshold.</p>
+  <form method="post" action="/settings/thresholds">
+    <div class="grid">
+      {{range .Thresholds}}
+      <label>{{.Label}}
+        <input type="number" name="{{.Status}}" value="{{.Days}}" min="1" max="365" required>
+        {{with .Error}}<small class="error">{{.}}</small>{{end}}
+      </label>
+      {{end}}
+    </div>
+    <button type="submit">Save thresholds</button>
+  </form>
+</article>
+
+<article>
+  <h2>Timezone</h2>
+  <p>Calendar dates are recorded and displayed in <strong>{{.Timezone}}</strong>.</p>
+  <p class="muted">Set by the <code>TZ</code> environment variable; restart the service to change it.</p>
+</article>
+
+<article>
+  <h2>Password</h2>
+  {{if .PasswordSet}}
+  <form method="post" action="/settings/password">
+    <label>Current password
+      <input type="password" name="current_password" autocomplete="current-password" required>
+      {{with .Errors.current_password}}<small class="error">{{.}}</small>{{end}}
+    </label>
+    <label>New password
+      <input type="password" name="new_password" autocomplete="new-password" minlength="12" required>
+      {{with .Errors.new_password}}<small class="error">{{.}}</small>{{end}}
+    </label>
+    <label>Confirm new password
+      <input type="password" name="confirm_password" autocomplete="new-password" minlength="12" required>
+      {{with .Errors.confirm_password}}<small class="error">{{.}}</small>{{end}}
+    </label>
+    <button type="submit">Change password</button>
+  </form>
+  {{else}}
+  <p>No password set yet. <a href="/setup">Finish setup</a> to set one.</p>
+  {{end}}
+</article>
+
+<article>
+  <h2>Sessions</h2>
+  <p>Rotating the session secret signs out every browser, including this one.</p>
+  <form method="post" action="/settings/session-secret" data-confirm="Sign out everywhere?">
+    <button type="submit" class="secondary">Sign out everywhere</button>
+  </form>
+</article>
+{{end}}

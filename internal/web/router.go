@@ -13,18 +13,32 @@ import (
 // versioned by release, so a one-hour cache is safe and easy to invalidate.
 const staticCacheControl = "public, max-age=3600"
 
+// Options carries the services the router exposes. Fields may be nil for
+// health-only use (the healthcheck command and its tests); the application
+// routes then answer 500 instead of panicking.
+type Options struct {
+	Apps     *service.ApplicationService
+	Docs     *service.DocumentService
+	Settings *service.SettingsService
+	Renderer *Renderer
+}
+
 // server holds the dependencies shared by the application handlers.
 type server struct {
 	apps     *service.ApplicationService
 	docs     *service.DocumentService
+	settings *service.SettingsService
 	renderer *Renderer
 }
 
-// NewRouter returns the application's HTTP handler. Dependencies may be nil
-// for health-only use (the healthcheck command and its tests); the application
-// routes then answer 500 instead of panicking.
-func NewRouter(apps *service.ApplicationService, docs *service.DocumentService, renderer *Renderer) http.Handler {
-	s := &server{apps: apps, docs: docs, renderer: renderer}
+// NewRouter returns the application's HTTP handler.
+func NewRouter(opts Options) http.Handler {
+	s := &server{
+		apps:     opts.Apps,
+		docs:     opts.Docs,
+		settings: opts.Settings,
+		renderer: opts.Renderer,
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
@@ -32,6 +46,10 @@ func NewRouter(apps *service.ApplicationService, docs *service.DocumentService, 
 	mux.Handle("GET /static/", staticHandler())
 
 	mux.HandleFunc("GET /dashboard", s.dashboard)
+	mux.HandleFunc("GET /settings", s.settingsPage)
+	mux.HandleFunc("POST /settings/thresholds", s.updateThresholds)
+	mux.HandleFunc("POST /settings/password", s.changePassword)
+	mux.HandleFunc("POST /settings/session-secret", s.rotateSessionSecret)
 	mux.HandleFunc("GET /applications", s.listApplications)
 	mux.HandleFunc("GET /applications/rows", s.applicationRows)
 	mux.HandleFunc("GET /applications/new", s.newApplicationForm)
@@ -56,7 +74,7 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 // ready reports whether the application dependencies were wired. Health-only
 // routers are valid, so handlers guard instead of assuming.
 func (s *server) ready(w http.ResponseWriter) bool {
-	if s.apps == nil || s.docs == nil || s.renderer == nil {
+	if s.apps == nil || s.docs == nil || s.settings == nil || s.renderer == nil {
 		http.Error(w, "application routes are not configured", http.StatusInternalServerError)
 		return false
 	}

@@ -25,6 +25,10 @@ var flashMessages = map[string]string{
 
 	"document":         "Document uploaded.",
 	"document_deleted": "Document deleted.",
+
+	"thresholds": "Thresholds updated.",
+	"password":   "Password changed.",
+	"sessions":   "Signed out everywhere.",
 }
 
 type applicationFilter struct {
