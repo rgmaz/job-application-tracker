@@ -6,7 +6,7 @@
 
 ## Status
 
-- Current phase: **M4 complete — next 5.1 (settings service and page)**
+- Current phase: **M5 in progress — 5.1 complete; next 5.2 (authentication)**
 - Plan revision: **2026-11-21 — migrations switched from a custom runner to goose v3.30.1**
 - Repo: `/home/ryan/Projects/job-application-tracker` (git initialized, branch `main`)
 - Plan mode restriction: lifted. This file is the live checklist.
@@ -435,12 +435,20 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
 
 ### M5 — Settings, staleness UI, auth
 
-- [ ] **5.1 Settings service and page**
+- [x] **5.1 Settings service and page**
     - Targets: `internal/service/settings.go`, `internal/web/settings.go`,
       `web/templates/settings.html`
     - Changes: edit thresholds (validated 1–365), display effective timezone,
       change password, session-secret rotation ("log out everywhere").
     - Verify: threshold edit changes `due_on`/stale for an existing backdated row.
+    - Notes: `SettingsService` reads/writes the active-status thresholds, the
+      argon2id password hash, and the 32-byte HMAC session secret. Password
+      changes verify the current password and enforce a 12-character minimum.
+      The page shows the process timezone read-only because `TZ` is startup
+      configuration. Router dependencies moved to a `web.Options` struct so the
+      settings service and the upcoming auth service can be added without a
+      positional-argument pile-up. Verified by a backdated row whose `due_on`
+      and `is_stale` change after the applied threshold moves from 14 to 1.
 - [ ] **5.2 Authentication**
     - Targets: `internal/service/auth.go`, `internal/web/auth.go`,
       `web/templates/{login,setup}.html`
@@ -552,3 +560,4 @@ docker compose up -d && curl -fsS http://127.0.0.1:8080/healthz
 | 2026-11-25 | M4.1      | Random-key file store with size cap, sha256, MIME sniffing, HTML/XHTML/SVG rejection, name sanitisation, and idempotent delete; race/vet clean.    |
 | 2026-11-25 | M4.2      | Document upload/list/get/open/delete service; upload commits row + event with file cleanup on failure; delete logs orphans; tests cover validation. |
 | 2026-11-25 | M4.3      | Document upload/download/delete routes, kind selector, detail-page list, attachment/nosniff headers; live and Docker restart smoke tests pass.      |
+| 2026-11-26 | M5.1      | Settings service and page: validated 1–365 thresholds, effective timezone, argon2id password change, session-secret rotation; staleness test passes. |
