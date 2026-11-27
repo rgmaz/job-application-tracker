@@ -465,17 +465,36 @@ up -d` → `curl /healthz` returns `{"status":"ok"}`, health status becomes
       failures per client address per 15 minutes; the counter is in memory and
       clears on restart. The routes are live but the auth gate arrives in 5.3.
       Verified by service tests plus a live setup → login → logout smoke test.
-- [ ] **5.3 Middleware and hardening**
+- [x] **5.3 Middleware and hardening**
     - Targets: `internal/web/middleware.go`
     - Changes: auth gate, CSRF origin check on non-GET, CSP
       (`default-src 'self'`), `X-Frame-Options: DENY`, referrer policy,
       request logging, panic recovery.
     - Verify: unauthenticated GET redirects to `/login`; POST with foreign
       `Origin` gets 403; `AUTH_DISABLED` guard test.
-- [ ] **5.4 Auth/handler tests**
+    - Notes: the mux is wrapped outermost-to-innermost by request logging,
+      security headers, panic recovery, CSRF, and the session gate. The gate
+      redirects anonymous requests to `/login` and leaves `/healthz`,
+      `/static/`, `/login`, `/setup`, and `/logout` public. CSRF allows a
+      missing `Origin` (scripts and older browsers) and otherwise requires the
+      request `Host` or the configured `BASE_URL` host; the scheme is ignored
+      so a TLS-terminating proxy works. Headers are `default-src 'self'`,
+      `X-Frame-Options: DENY`, `nosniff`, and `no-referrer`. Request logs carry
+      method, path, status, size, duration, and remote host, never cookies or
+      query strings. `AUTH_DISABLED` skips the gate only after config
+      validation has required a trusted proxy or loopback bind. The web fixture
+      now signs in by default so handler tests stay focused; auth tests call
+      `signOut`. Verified with gate, CSRF, header, panic, logging, and
+      auth-disabled tests plus a live setup → protected page → logout smoke.
+- [x] **5.4 Auth/handler tests**
     - Targets: `internal/web/auth_test.go`
     - Changes: setup → login → authenticated request → logout; rate-limit burst.
     - Verify: `go test ./internal/web`.
+    - Notes: `TestAuthLifecycle` drives setup → cookie → protected dashboard →
+      logout → password login through the router. `TestLoginRateLimitExpires`
+      advances the fake clock past the 15-minute window to prove the fixed
+      counter reopens. The existing burst and tampered-cookie tests now run
+      against the gate rather than the unguarded mux.
 
 ### M6 — Export, backup, docs, final gate
 
