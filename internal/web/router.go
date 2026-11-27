@@ -3,7 +3,9 @@ package web
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/rgmaz/job-application-tracker/internal/service"
 	webassets "github.com/rgmaz/job-application-tracker/web"
@@ -22,7 +24,12 @@ type Options struct {
 	Settings     *service.SettingsService
 	Auth         *service.AuthService
 	Renderer     *Renderer
+	Logger       *slog.Logger
+	BaseURL      *url.URL
 	CookieSecure bool
+	// AuthDisabled skips the session gate. Config.Load refuses this unless a
+	// trusted proxy or a loopback bind makes the deployment boundary explicit.
+	AuthDisabled bool
 }
 
 // server holds the dependencies shared by the application handlers.
@@ -32,18 +39,28 @@ type server struct {
 	settings     *service.SettingsService
 	auth         *service.AuthService
 	renderer     *Renderer
+	logger       *slog.Logger
+	baseURL      *url.URL
 	cookieSecure bool
+	authDisabled bool
 }
 
 // NewRouter returns the application's HTTP handler.
 func NewRouter(opts Options) http.Handler {
+	logger := opts.Logger
+	if logger == nil {
+		logger = silentLogger
+	}
 	s := &server{
 		apps:         opts.Apps,
 		docs:         opts.Docs,
 		settings:     opts.Settings,
 		auth:         opts.Auth,
 		renderer:     opts.Renderer,
+		logger:       logger,
+		baseURL:      opts.BaseURL,
 		cookieSecure: opts.CookieSecure,
+		authDisabled: opts.AuthDisabled,
 	}
 
 	mux := http.NewServeMux()
@@ -76,7 +93,7 @@ func NewRouter(opts Options) http.Handler {
 	mux.HandleFunc("GET /documents/{id}/download", s.downloadDocument)
 	mux.HandleFunc("POST /documents/{id}/delete", s.deleteDocument)
 
-	return mux
+	return s.middleware(mux)
 }
 
 func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {

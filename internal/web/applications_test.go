@@ -38,6 +38,9 @@ type webFixture struct {
 	db       *sql.DB
 	clock    *webClock
 	filesDir string
+	// session is the Cookie header sent by default. Tests that need an
+	// anonymous browser call signOut.
+	session string
 }
 
 func newWebFixture(t *testing.T) *webFixture {
@@ -88,7 +91,7 @@ func newWebFixtureWithOptions(t *testing.T, opts Options) *webFixture {
 	opts.Auth = auth
 	opts.Renderer = renderer
 
-	return &webFixture{
+	f := &webFixture{
 		router:   NewRouter(opts),
 		svc:      svc,
 		docs:     docs,
@@ -98,6 +101,24 @@ func newWebFixtureWithOptions(t *testing.T, opts Options) *webFixture {
 		clock:    clock,
 		filesDir: filesDir,
 	}
+	f.authenticate(t)
+	return f
+}
+
+// authenticate gives the fixture a valid session so tests can focus on the
+// handler under test. Call signOut to exercise the auth gate.
+func (f *webFixture) authenticate(t *testing.T) {
+	t.Helper()
+
+	token, _, err := f.auth.NewSession(context.Background())
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	f.session = sessionCookieName + "=" + token
+}
+
+func (f *webFixture) signOut() {
+	f.session = ""
 }
 
 func (f *webFixture) seed(t *testing.T, company, role, source, appliedOn, status string) storedb.Application {
@@ -130,6 +151,9 @@ func (f *webFixture) request(t *testing.T, method, target string, form url.Value
 	req := httptest.NewRequest(method, target, body)
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	if f.session != "" {
+		req.Header.Set("Cookie", f.session)
 	}
 	for key, value := range headers {
 		req.Header.Set(key, value)

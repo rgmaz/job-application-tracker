@@ -55,6 +55,9 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 	}
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	docs := service.NewDocuments(db, clock, fileStore, logger)
+	if cfg.AuthDisabled {
+		logger.Warn("authentication is disabled", "trust_proxy_auth", cfg.TrustProxyAuth)
+	}
 
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
@@ -66,7 +69,10 @@ func serve(ctx context.Context, cfg config.Config, stderr io.Writer) error {
 		Settings:     settings,
 		Auth:         auth,
 		Renderer:     renderer,
+		Logger:       logger,
+		BaseURL:      cfg.BaseURL,
 		CookieSecure: cfg.CookieSecure,
+		AuthDisabled: cfg.AuthDisabled,
 	}), stderr)
 }
 

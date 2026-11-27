@@ -258,6 +258,10 @@ func TestSettingsSessionSecretRotation(t *testing.T) {
 		t.Error("session secret was not rotated")
 	}
 
+	// Rotation invalidates the fixture's old token, so sign in again before
+	// following the redirect.
+	f.authenticate(t)
+
 	rec = f.get(t, rec.Header().Get("Location"))
 	if !strings.Contains(rec.Body.String(), "Signed out everywhere.") {
 		t.Error("settings page does not show the sessions flash")

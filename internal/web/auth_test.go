@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testPassword = "correct-password-123"
@@ -119,6 +120,7 @@ func TestLoginFlow(t *testing.T) {
 	t.Parallel()
 
 	f := newWebFixture(t)
+	f.signOut()
 
 	rec := f.get(t, "/login")
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/setup" {
@@ -175,6 +177,7 @@ func TestLogout(t *testing.T) {
 	t.Parallel()
 
 	f := newWebFixture(t)
+	f.signOut()
 	f.setupPassword(t)
 
 	rec := f.post(t, "/logout", nil)
@@ -260,5 +263,100 @@ func TestSessionCookieSecureFlag(t *testing.T) {
 	}
 	if !cookie.Secure {
 		t.Error("Secure option did not mark the session cookie Secure")
+	}
+}
+
+// TestAuthLifecycle walks the whole browser journey through the router: an
+// anonymous request is gated, setup signs the user in, the session reaches a
+// protected page, logout clears it, and password login starts a new one.
+func TestAuthLifecycle(t *testing.T) {
+	t.Parallel()
+
+	f := newWebFixture(t)
+	f.signOut()
+
+	rec := f.get(t, "/dashboard")
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/login" {
+		t.Fatalf("anonymous dashboard = %d %q, want 303 /login", rec.Code, rec.Header().Get("Location"))
+	}
+
+	rec = f.post(t, "/setup", url.Values{
+		"password":         {testPassword},
+		"confirm_password": {testPassword},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("setup status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	cookie := sessionCookie(t, rec)
+	if cookie == nil {
+		t.Fatal("setup did not set a session cookie")
+	}
+	session := sessionCookieName + "=" + cookie.Value
+
+	rec = f.request(t, http.MethodGet, "/dashboard", nil, map[string]string{"Cookie": session})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("authenticated dashboard = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	rec = f.request(t, http.MethodPost, "/logout", nil, map[string]string{"Cookie": session})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("logout status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/login?flash=signed_out" {
+		t.Errorf("logout Location = %q, want /login?flash=signed_out", got)
+	}
+	if cleared := sessionCookie(t, rec); cleared == nil || cleared.MaxAge >= 0 {
+		t.Errorf("logout cookie = %+v, want a clearing cookie", cleared)
+	}
+
+	rec = f.get(t, "/dashboard")
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/login" {
+		t.Fatalf("dashboard after logout = %d %q, want 303 /login", rec.Code, rec.Header().Get("Location"))
+	}
+
+	rec = f.post(t, "/login", url.Values{"password": {"wrong-password"}})
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong login status = %d, want 401", rec.Code)
+	}
+
+	rec = f.post(t, "/login", url.Values{"password": {testPassword}})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("login status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	cookie = sessionCookie(t, rec)
+	if cookie == nil {
+		t.Fatal("login did not set a session cookie")
+	}
+
+	rec = f.request(t, http.MethodGet, "/dashboard", nil, map[string]string{
+		"Cookie": sessionCookieName + "=" + cookie.Value,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dashboard after login = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestLoginRateLimitExpires(t *testing.T) {
+	t.Parallel()
+
+	f := newWebFixture(t)
+	f.signOut()
+	f.setupPassword(t)
+
+	for range 5 {
+		rec := f.post(t, "/login", url.Values{"password": {"wrong-password"}})
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt status = %d, want 401", rec.Code)
+		}
+	}
+	if rec := f.post(t, "/login", url.Values{"password": {testPassword}}); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status inside the window = %d, want 429", rec.Code)
+	}
+
+	f.clock.now = f.clock.now.Add(16 * time.Minute)
+
+	rec := f.post(t, "/login", url.Values{"password": {testPassword}})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status after the window = %d, want 303: %s", rec.Code, rec.Body.String())
 	}
 }

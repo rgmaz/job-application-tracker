@@ -40,6 +40,9 @@ func (f *webFixture) upload(t *testing.T, target, kind, filename string, content
 
 	req := httptest.NewRequest(http.MethodPost, target, &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if f.session != "" {
+		req.Header.Set("Cookie", f.session)
+	}
 
 	rec := httptest.NewRecorder()
 	f.router.ServeHTTP(rec, req)
